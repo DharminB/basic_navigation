@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>basic_navigation</name>
+  <version>0.1.0</version>
+  <description>Navigation to move a mobile robot in a straight line path or using
+  a global planner's path. </description>
+
+  <maintainer email="dharmingeo@gmail.com">Dharmin B.</maintainer>
+
+  <license>GPLv3</license>
+
+  <author email="dharmingeo@gmail.com">Dharmin B.</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>ropod_sim_model</build_depend>
+  <exec_depend>ropod_sim_model</exec_depend>
+
+  <export>
+  </export>
+
+</package>

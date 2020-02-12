@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- MAP PARAMS -->
+    <arg name="map_file" default="$(find ropod_navigation_test)/../occupancy_grids/brsu/brsu-c-floor0_osm/map.yaml" />
+    <!-- offset between gazebo world origin and map origin -->
+    <arg name="init_x" default="-5.0" />
+    <arg name="init_y" default="5.5" />
+    <arg name="init_theta" default="0.0" />
+    <arg name="robot_id" default="robot1" />
+    <arg name="map_offset_x" default="59.95" />
+    <arg name="map_offset_y" default="25.6" />
+    <arg name="map_offset_theta" default="0.0" />
+    <arg name="model" default="ropod"/>
+    <arg name="model_path" default="$(find ropod_description)/xacro/$(arg model).xacro"/>
+    <arg name="world" default="brsu_ground_floor"/>
+    <arg name="paused" default="false"/>
+    <arg name="use_sim_time" default="true"/>
+    <arg name="gui" default="false"/>
+    <arg name="debug" default="false"/>
+    <arg name="start_rviz" default="true"/>
+
+    <!-- Load the world -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    </include>
+
+	<group ns="robot1">
+		<param name="tf_prefix" value="robot1" />
+        <!-- Load the robot description from the urdf model -->
+        <param name="robot_description" command="rosrun xacro xacro --inorder '$(arg model_path)' namespace:=$(arg robot_id)" />
+
+        <!-- http://wiki.ros.org/joint_state_publisher -->
+        <!-- param name="value" command="rosrun xacro xacro '$(arg model)'" / -->
+        <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+            <param name="rate" value="10"/>
+        </node>
+
+        <!-- http://wiki.ros.org/robot_state_publisher/Tutorials/Using%20the%20robot%20state%20publisher%20on%20your%20own%20robot -->
+        <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" />
+
+        <!-- Spawn the robot using the arguments and robot description -->
+        <node name="spawn_urdf_model" pkg="gazebo_ros" type="spawn_model" args="-param robot_description -urdf -x $(arg init_x) -y $(arg init_y) -z 0.0 -Y $(arg init_theta) -model $(arg robot_id)" />
+
+        <include file="$(find basic_navigation)/ros/launch/amcl.launch">
+            <arg name="robot_name" value="$(arg robot_id)" />
+            <arg name="initial_pose_x" value="$(eval arg('init_x') + arg('map_offset_x'))" />
+            <arg name="initial_pose_y" value="$(eval arg('init_y') + arg('map_offset_y'))" />
+            <arg name="initial_pose_a" value="$(eval arg('init_theta') + arg('map_offset_theta'))" />
+        </include>
+
+	</group>
+
+    <node pkg="ropod_gazebo" name="odom_tf_pub" type="ros_frame_pub" respawn="true" output="screen" />
+
+    <!-- Run the map server -->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+
+    <group if="$(arg start_rviz)">
+        <!-- rviz for visualisation -->
+        <node pkg="rviz" type="rviz" name="rviz" args="-d $(find basic_navigation)/ros/config/basic_navigation.rviz" />
+    </group>
+
+
+
+</launch>
