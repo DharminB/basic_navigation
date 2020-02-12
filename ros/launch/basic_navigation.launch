@@ -3,24 +3,26 @@
 
     <arg name="control_rate" default="5.0"/>
     <arg name="costmap_topic" default="/local_costmap/costmap/costmap"/>
-    <arg name="goal_topic" default="/robot1/move_base_simple/goal"/>
-    <arg name="localisation_topic" default="/robot1_amcl/pose"/>
-    <arg name="cmd_vel_topic" default="/robot1/cmd_vel"/>
+    <arg name="goal_topic" default="/move_base_simple/goal"/>
+    <arg name="localisation_topic" default="/amcl_pose"/>
+    <arg name="cmd_vel_topic" default="/ropod/cmd_vel"/>
     <arg name="global_planner_service" default="/global_planner/make_plan"/>
+    <arg name="use_global_planner" default="true"/>
 
     <node pkg="costmap_2d" name="local_costmap" type="costmap_2d_node" output="screen" >
         <rosparam command="load" ns="costmap"
-                  file="$(find ropod_gazebo)/ros/config/costmap_test.yaml"/>
+                  file="$(find basic_navigation)/ros/config/costmap_test.yaml"/>
     </node>
 
-    <node pkg="global_planner" name="global_planner" type="planner" output="screen" >
+    <node pkg="navfn" name="global_planner" type="navfn_node" output="screen" >
         <rosparam command="load" ns="costmap"
-                  file="$(find ropod_gazebo)/ros/config/global_costmap_test.yaml"/>
+                  file="$(find basic_navigation)/ros/config/global_costmap_test.yaml"/>
     </node>
 
-    <node pkg="ropod_gazebo" name="basic_navigation" type="basic_navigation" output="screen" >
+    <node pkg="basic_navigation" name="basic_navigation" type="basic_navigation" output="screen" >
         <param name="control_rate" type="double" value="$(arg control_rate)"/>
         <param name="global_planner_service" type="string" value="$(arg global_planner_service)"/>
+        <param name="use_global_planner" type="bool" value="$(arg use_global_planner)"/>
         <remap from="~costmap" to="$(arg costmap_topic)"/>
         <remap from="~goal" to="$(arg goal_topic)"/>
         <remap from="~localisation" to="$(arg localisation_topic)"/>

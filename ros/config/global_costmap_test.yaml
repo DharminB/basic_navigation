@@ -1,5 +1,5 @@
 global_frame: /map
-robot_base_frame: /robot1/base_link
+robot_base_frame: /ropod/base_link
 update_frequency: 1.0
 publish_frequency: 1.0
 static_map: true
@@ -22,8 +22,8 @@ raytrace_range: 10.0
 
 observation_sources: laser_scan_sensor
 laser_scan_sensor:
-    sensor_frame: /robot1/front_laser_link
+    sensor_frame: /rslidar_projected_front
     data_type: LaserScan
-    topic: /robot1/scan
+    topic: /projected_scan_front
     marking: true
     clearing: true

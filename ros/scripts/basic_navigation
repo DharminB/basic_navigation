@@ -6,6 +6,7 @@ import tf
 import copy
 import math
 import rospy
+import traceback
 from nav_msgs.msg import OccupancyGrid, Path
 from geometry_msgs.msg import PoseStamped, Pose, TransformStamped, Quaternion
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, Point
@@ -303,6 +304,10 @@ class BasicNavigation(object):
             response = self.call_global_planner(req)
             if len(response.path) > 0:
                 plan = response.path
+            else:
+                rospy.logerr('Global planner failed.')
+                self.goal = None
+                return
         except rospy.ServiceException as e:
             rospy.logerr('Global planner failed.')
             rospy.logerr(str(e))
@@ -385,4 +390,5 @@ if __name__ == "__main__":
             RATE.sleep()
     except Exception as e:
         rospy.logerr(str(e))
+        traceback.print_exc()
     rospy.loginfo('Exiting.')
