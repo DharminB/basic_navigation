@@ -7,7 +7,7 @@ import math
 import rospy
 import traceback
 from nav_msgs.msg import OccupancyGrid, Path
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PointStamped
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
 from maneuver_navigation.msg import Feedback as ManeuverNavFeedback
 
@@ -49,11 +49,21 @@ class BasicNavigation(object):
         self.min_linear_vel = rospy.get_param('~min_linear_vel', 0.1)
         self.future_pos_lookahead_dist = rospy.get_param('~future_pos_lookahead_dist', 0.4)
 
+        # recovery
+        self.recovery_enabled = rospy.get_param('~recovery_enabled', False)
+        if self.recovery_enabled:
+            self.recovery_wait_duration = rospy.get_param('~recovery_wait_duration', 1.0)
+            self.recovery_motion_duration = rospy.get_param('~recovery_motion_duration', 2.0)
+            self.recovery_vel = rospy.get_param('~recovery_vel', -0.1)
+
         self.costmap_to_vel_multiplier = (self.max_linear_vel-self.min_linear_vel)/max_safe_costmap_val
 
         # Publishers
         self._cmd_vel_pub = rospy.Publisher('~cmd_vel', Twist, queue_size=1)
         self._path_pub = rospy.Publisher('~path', Path, queue_size=1)
+        self._collision_lookahead_point_pub = rospy.Publisher('~collision_point',
+                                                              PointStamped,
+                                                              queue_size=1)
         self._nav_feedback_pub = rospy.Publisher('~nav_feedback',
                                                  ManeuverNavFeedback,
                                                  queue_size=1)
@@ -136,10 +146,13 @@ class BasicNavigation(object):
                 rospy.loginfo('Retrying')
                 self.retry_attempts += 1
                 self.publish_zero_vel()
+                if self.recovery_enabled:
+                    self.recover()
                 self.publish_nav_feedback(ManeuverNavFeedback.BUSY)
                 self.plan = None
             else:
                 rospy.logerr('ABORTING')
+                self.retry_attempts = 0
                 self.publish_zero_vel()
                 self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 self.goal = None
@@ -152,6 +165,23 @@ class BasicNavigation(object):
         theta_vel_raw = theta_error * self.p_theta
         theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
         self._cmd_vel_pub.publish(Utils.get_twist(x=x_vel, y=0.0, theta=theta_vel))
+
+    def recover(self):
+        rospy.loginfo('Recovering')
+        if self.recovery_wait_duration > 0:
+            rospy.loginfo('Recovery bahaviour: WAITING (duration: ' +
+                          str(self.recovery_wait_duration) + ' seconds)')
+            rospy.sleep(self.recovery_wait_duration)
+        if self.recovery_motion_duration > 0:
+            rospy.loginfo('Recovery bahaviour: MOVE BACKWARDS (duration: ' +
+                          str(self.recovery_motion_duration) + ' seconds)')
+            start_time = rospy.get_time()
+            recovery_twist = Utils.get_twist(x=self.recovery_vel)
+            while rospy.get_time() < start_time + self.recovery_motion_duration:
+                rospy.sleep(0.1)
+                self._cmd_vel_pub.publish(recovery_twist)
+
+        rospy.loginfo('Recovery finished')
 
     def goal_cb(self, msg):
         self.goal = Utils.get_x_y_theta_from_pose(msg.pose)
@@ -184,11 +214,13 @@ class BasicNavigation(object):
                 plan = response.path
             else:
                 rospy.logerr('Global planner failed.')
+                rospy.logerr('ABORTING')
                 self.goal = None
                 self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 return
         except rospy.ServiceException as e:
             rospy.logerr('Global planner failed.')
+            rospy.logerr('ABORTING')
             rospy.logerr(str(e))
             self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
             return
@@ -251,6 +283,12 @@ class BasicNavigation(object):
     def _get_vel_based_on_costmap(self):
         future_pos = (self.curr_pos[0] + self.future_pos_lookahead_dist * math.cos(self.curr_pos[2]),
                       self.curr_pos[1] + self.future_pos_lookahead_dist * math.sin(self.curr_pos[2]))
+        collision_point = PointStamped()
+        collision_point.header.stamp = rospy.Time.now()
+        collision_point.header.frame_id = self.global_frame
+        collision_point.point.x = future_pos[0]
+        collision_point.point.y = future_pos[1]
+        self._collision_lookahead_point_pub.publish(collision_point)
         future_costmap_value = self._get_costmap_value_at(*future_pos)
         future_vel = self.max_linear_vel - (future_costmap_value * self.costmap_to_vel_multiplier)
         return future_vel

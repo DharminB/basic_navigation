@@ -5,4 +5,4 @@ transform_tolerance: 0.3
 always_send_full_costmap: false
 
 # inflation layer
-inflation_radius: 0.1
+inflation_radius: 0.5

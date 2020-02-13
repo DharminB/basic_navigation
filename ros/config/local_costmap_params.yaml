@@ -9,5 +9,5 @@ transform_tolerance: 0.3
 always_send_full_costmap: true
 
 # inflation layer
-inflation_radius: 2.0
+inflation_radius: 1.0
 cost_scaling_factor: 5.0
