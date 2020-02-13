@@ -12,6 +12,8 @@ from geometry_msgs.msg import PoseStamped, Pose, TransformStamped, Quaternion
 from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, Point
 from navfn.srv import MakeNavPlan, MakeNavPlanRequest, MakeNavPlanResponse
 
+from maneuver_navigation.msg import Feedback as ManeuverNavFeedback
+
 class Utils(object):
 
     """Utility functions used for 2d navigation"""
@@ -64,22 +66,22 @@ class Utils(object):
     @staticmethod
     def get_static_transform_from_x_y_theta(x, y, theta, frame_id="odom"):
         """Create a TransformedStamped message from x y and theta to 0, 0 and 0
-        
+
         :x: float
         :y: float
         :theta: float
         :returns: geometry_msgs.TransformStamped
         """
         transform = TransformStamped()
-  
+
         transform.header.stamp = rospy.Time.now()
         transform.header.frame_id = frame_id
         transform.child_frame_id = "start_pose"
-  
+
         transform.transform.translation.x = x
         transform.transform.translation.y = y
         transform.transform.translation.z = 0.0
-  
+
         quat = tf.transformations.quaternion_from_euler(0.0, 0.0, theta)
         transform.transform.rotation = Quaternion(*quat)
         return transform
@@ -185,6 +187,9 @@ class BasicNavigation(object):
         # Publishers
         self._cmd_vel_pub = rospy.Publisher('~cmd_vel', Twist, queue_size=1)
         self._path_pub = rospy.Publisher('~path', Path, queue_size=1)
+        self._nav_feedback_pub = rospy.Publisher('~nav_feedback',
+                                                 ManeuverNavFeedback,
+                                                 queue_size=1)
 
         # Subscribers
         costmap_sub = rospy.Subscriber('~costmap', OccupancyGrid, self.costmap_cb)
@@ -228,6 +233,7 @@ class BasicNavigation(object):
             if abs(angular_dist) < self.goal_theta_tolerance:
                 rospy.loginfo('REACHED GOAL')
                 self.publish_zero_vel()
+                self.publish_nav_feedback(ManeuverNavFeedback.SUCCESS)
                 self.goal = None
                 self.plan = None
                 self.reached_goal_once = False
@@ -260,10 +266,12 @@ class BasicNavigation(object):
                 rospy.loginfo('Retrying')
                 self.retry_attempts += 1
                 self.publish_zero_vel()
+                self.publish_nav_feedback(ManeuverNavFeedback.BUSY)
                 self.plan = None
             else:
                 rospy.logerr('ABORTING')
                 self.publish_zero_vel()
+                self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 self.goal = None
             return
 
@@ -307,10 +315,12 @@ class BasicNavigation(object):
             else:
                 rospy.logerr('Global planner failed.')
                 self.goal = None
+                self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 return
         except rospy.ServiceException as e:
             rospy.logerr('Global planner failed.')
             rospy.logerr(str(e))
+            self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
             return
 
         first_pose = Utils.get_x_y_theta_from_pose(plan[0].pose)
@@ -353,7 +363,7 @@ class BasicNavigation(object):
         # Assumption: costmap's global_frame is map
         :x: float
         :y: float
-        
+
         :returns: int (between -1 and 100)
         """
         costmap_origin_x = self.costmap_msg.info.origin.position.x
@@ -374,10 +384,12 @@ class BasicNavigation(object):
         future_costmap_value = self._get_costmap_value_at(*future_pos)
         future_vel = self.max_linear_vel - (future_costmap_value * self.costmap_to_vel_multiplier)
         return future_vel
-        
+
     def publish_zero_vel(self):
         self._cmd_vel_pub.publish(Utils.get_twist())
 
+    def publish_nav_feedback(self, status):
+        self._nav_feedback_pub.publish(ManeuverNavFeedback(status=status))
 
 if __name__ == "__main__":
     rospy.init_node('basic_navigation')

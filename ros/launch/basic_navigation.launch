@@ -7,6 +7,7 @@
     <arg name="localisation_topic" default="/amcl_pose"/>
     <arg name="cmd_vel_topic" default="/ropod/cmd_vel"/>
     <arg name="global_planner_service" default="/global_planner/make_plan"/>
+    <arg name="nav_feedback_topic" default="/route_navigation/feedback"/>
     <arg name="use_global_planner" default="true"/>
 
     <node pkg="costmap_2d" name="local_costmap" type="costmap_2d_node" output="screen" >
@@ -27,5 +28,6 @@
         <remap from="~goal" to="$(arg goal_topic)"/>
         <remap from="~localisation" to="$(arg localisation_topic)"/>
         <remap from="~cmd_vel" to="$(arg cmd_vel_topic)"/>
+        <remap from="~nav_feedback" to="$(arg nav_feedback_topic)"/>
     </node>
 </launch>
