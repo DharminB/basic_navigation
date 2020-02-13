@@ -2,148 +2,18 @@
 
 from __future__ import print_function
 
-import tf
 import copy
 import math
 import rospy
+import traceback
 from nav_msgs.msg import OccupancyGrid, Path
-from geometry_msgs.msg import PoseStamped, Pose, TransformStamped, Quaternion
-from geometry_msgs.msg import Twist, PoseWithCovarianceStamped, Point
+from geometry_msgs.msg import PoseStamped, PointStamped
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+from maneuver_navigation.msg import Feedback as ManeuverNavFeedback
+
 from navfn.srv import MakeNavPlan, MakeNavPlanRequest, MakeNavPlanResponse
 
-class Utils(object):
-
-    """Utility functions used for 2d navigation"""
-
-    @staticmethod
-    def get_pose_from_x_y_theta(x, y, theta):
-        """Return a Pose object from x, y and theta
-        :x: float
-        :y: float
-        :theta: float
-        :returns: geometry_msgs.Pose
-
-        """
-        pose = Pose()
-        pose.position.x = x
-        pose.position.y = y
-
-        quat = tf.transformations.quaternion_from_euler(0.0, 0.0, theta)
-        pose.orientation = Quaternion(*quat)
-        return pose
-
-    @staticmethod
-    def get_pose_stamped_from_frame_x_y_theta(frame, x, y, theta):
-        """Return a Pose object from x, y and theta
-        :x: float
-        :y: float
-        :theta: float
-        :frame: string
-        :returns: geometry_msgs.PoseStamped
-
-        """
-        pose = PoseStamped()
-        pose.pose = Utils.get_pose_from_x_y_theta(x, y, theta)
-        pose.header.stamp = rospy.Time.now()
-        pose.header.frame_id = frame
-        return pose
-
-    @staticmethod
-    def get_x_y_theta_from_pose(pose):
-        """Return a tuple(x, y, theta) from Pose objects
-
-        :pose: geometry_msgs/Pose
-        :returns: tuple(x, y, theta)
-
-        """
-        quat = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
-        theta = tf.transformations.euler_from_quaternion(quat)[2]
-        return (pose.position.x, pose.position.y, theta)
-
-    @staticmethod
-    def get_static_transform_from_x_y_theta(x, y, theta, frame_id="odom"):
-        """Create a TransformedStamped message from x y and theta to 0, 0 and 0
-        
-        :x: float
-        :y: float
-        :theta: float
-        :returns: geometry_msgs.TransformStamped
-        """
-        transform = TransformStamped()
-  
-        transform.header.stamp = rospy.Time.now()
-        transform.header.frame_id = frame_id
-        transform.child_frame_id = "start_pose"
-  
-        transform.transform.translation.x = x
-        transform.transform.translation.y = y
-        transform.transform.translation.z = 0.0
-  
-        quat = tf.transformations.quaternion_from_euler(0.0, 0.0, theta)
-        transform.transform.rotation = Quaternion(*quat)
-        return transform
-
-    @staticmethod
-    def get_shortest_angle(angle1, angle2):
-        """Compute the angular distance between two angles (in radians)
-
-        :angle1: float
-        :angle2: float
-        :returns: float
-        """
-        return math.atan2(math.sin(angle1 - angle2), math.cos(angle1 - angle2))
-
-    @staticmethod
-    def get_distance(delta_x, delta_y):
-        """Compute cartesian distance given individual distance in x and y axis
-
-        :delta_x: float
-        :delta_y: float
-        :returns: float
-
-        """
-        return (delta_x**2 + delta_y**2)**0.5
-
-    @staticmethod
-    def get_distance_between_points(p1, p2):
-        """Compute cartesian distance given two points
-
-        :p1: tuple(float, float)
-        :p2: tuple(float, float)
-        :returns: float
-
-        """
-        return Utils.get_distance(p1[0]-p2[0], p1[1]-p2[1])
-
-    @staticmethod
-    def clip(value, max_allowed=1.0, min_allowed=0.1):
-        """Clip the provided value to be between the given range
-
-        :value: float
-        :max_allowed: float
-        :min_allowed: float
-        :returns: float
-
-        """
-        sign = 1.0 if value > 0.0 else -1.0
-        return sign * min(max_allowed, max(min_allowed, abs(value)))
-
-    @staticmethod
-    def get_twist(x=0.0, y=0.0, theta=0.0):
-        """Return twist ros message object.
-
-        :x: float
-        :y: float
-        :theta: float
-        :returns: geometry_msgs.msg.Twist
-
-        """
-        msg = Twist()
-        msg.linear.x = x
-        msg.linear.y = y
-        msg.angular.z = theta
-        return msg
-
+from basic_navigation.utils import Utils
 
 class BasicNavigation(object):
 
@@ -155,8 +25,10 @@ class BasicNavigation(object):
         self.curr_pos = None
         self.plan = None
         self.reached_goal_once = False
+        self.moving_backward = False
         self.global_frame = rospy.get_param('~global_frame', 'map')
         self.use_global_planner = rospy.get_param('~use_global_planner', False)
+        self.allow_backward_motion = rospy.get_param('~allow_backward_motion', False)
         self.num_of_retries = rospy.get_param('~num_of_retries', 3)
         self.retry_attempts = 0
 
@@ -179,11 +51,24 @@ class BasicNavigation(object):
         self.min_linear_vel = rospy.get_param('~min_linear_vel', 0.1)
         self.future_pos_lookahead_dist = rospy.get_param('~future_pos_lookahead_dist', 0.4)
 
+        # recovery
+        self.recovery_enabled = rospy.get_param('~recovery_enabled', False)
+        if self.recovery_enabled:
+            self.recovery_wait_duration = rospy.get_param('~recovery_wait_duration', 1.0)
+            self.recovery_motion_duration = rospy.get_param('~recovery_motion_duration', 2.0)
+            self.recovery_vel = rospy.get_param('~recovery_vel', -0.1)
+
         self.costmap_to_vel_multiplier = (self.max_linear_vel-self.min_linear_vel)/max_safe_costmap_val
 
         # Publishers
         self._cmd_vel_pub = rospy.Publisher('~cmd_vel', Twist, queue_size=1)
         self._path_pub = rospy.Publisher('~path', Path, queue_size=1)
+        self._collision_lookahead_point_pub = rospy.Publisher('~collision_point',
+                                                              PointStamped,
+                                                              queue_size=1)
+        self._nav_feedback_pub = rospy.Publisher('~nav_feedback',
+                                                 ManeuverNavFeedback,
+                                                 queue_size=1)
 
         # Subscribers
         costmap_sub = rospy.Subscriber('~costmap', OccupancyGrid, self.costmap_cb)
@@ -191,9 +76,12 @@ class BasicNavigation(object):
         localisation_sub = rospy.Subscriber('~localisation', PoseWithCovarianceStamped, self.localisation_cb)
 
         # Service client
-        global_planner_service_topic = rospy.get_param('~global_planner_service', 'make_plan')
-        rospy.wait_for_service(global_planner_service_topic)
-        self.call_global_planner = rospy.ServiceProxy(global_planner_service_topic, MakeNavPlan)
+        if self.use_global_planner:
+            global_planner_service_topic = rospy.get_param('~global_planner_service', 'make_plan')
+            rospy.loginfo('Waiting for global planner')
+            rospy.wait_for_service(global_planner_service_topic)
+            rospy.loginfo('Wait complete.')
+            self.call_global_planner = rospy.ServiceProxy(global_planner_service_topic, MakeNavPlan)
 
         rospy.sleep(0.5)
         rospy.loginfo('Initialised')
@@ -227,8 +115,10 @@ class BasicNavigation(object):
             if abs(angular_dist) < self.goal_theta_tolerance:
                 rospy.loginfo('REACHED GOAL')
                 self.publish_zero_vel()
+                self.publish_nav_feedback(ManeuverNavFeedback.SUCCESS)
                 self.goal = None
                 self.plan = None
+                self.moving_backward = False
                 self.reached_goal_once = False
                 return
             else:
@@ -239,8 +129,15 @@ class BasicNavigation(object):
             self.plan.pop(0)
 
         heading = math.atan2(curr_goal[1]-self.curr_pos[1], curr_goal[0]-self.curr_pos[0])
-        # heading_diff = heading - self.curr_pos[2]
         heading_diff = Utils.get_shortest_angle(heading, self.curr_pos[2])
+        if self.allow_backward_motion:
+            heading_diff_backward = Utils.get_shortest_angle(heading,
+                                                             Utils.get_reverse_angle(self.curr_pos[2]))
+            if abs(heading_diff) > abs(heading_diff_backward):
+                self.moving_backward = True
+                heading_diff = heading_diff_backward
+            else:
+                self.moving_backward = False
         if abs(heading_diff) > self.heading_tolerance:
             self._rotate_in_place(theta_error=heading_diff)
         else:
@@ -259,24 +156,53 @@ class BasicNavigation(object):
                 rospy.loginfo('Retrying')
                 self.retry_attempts += 1
                 self.publish_zero_vel()
+                if self.recovery_enabled:
+                    self.recover()
+                self.publish_nav_feedback(ManeuverNavFeedback.BUSY)
                 self.plan = None
             else:
                 rospy.logerr('ABORTING')
+                self.retry_attempts = 0
                 self.publish_zero_vel()
+                self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 self.goal = None
+                self.moving_backward = False
             return
 
         future_vel_prop_raw = pos_error * self.p_linear
         future_vel_prop = Utils.clip(future_vel_prop_raw, self.max_linear_vel, self.min_linear_vel)
 
         x_vel = min(future_vel_costmap, future_vel_prop)
+        if self.moving_backward:
+            x_vel *= -1
         theta_vel_raw = theta_error * self.p_theta
         theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
         self._cmd_vel_pub.publish(Utils.get_twist(x=x_vel, y=0.0, theta=theta_vel))
 
+    def recover(self):
+        rospy.loginfo('Recovering')
+        if self.recovery_wait_duration > 0:
+            rospy.loginfo('Recovery bahaviour: WAITING (duration: ' +
+                          str(self.recovery_wait_duration) + ' seconds)')
+            rospy.sleep(self.recovery_wait_duration)
+        if self.recovery_motion_duration > 0:
+            rospy.loginfo('Recovery bahaviour: MOVE BACKWARDS (duration: ' +
+                          str(self.recovery_motion_duration) + ' seconds)')
+            start_time = rospy.get_time()
+            recovery_twist = Utils.get_twist(x=self.recovery_vel)
+            if self.moving_backward:
+                recovery_twist.linear.x *= -1
+            while rospy.get_time() < start_time + self.recovery_motion_duration:
+                rospy.sleep(0.1)
+                self._cmd_vel_pub.publish(recovery_twist)
+
+        rospy.loginfo('Recovery finished')
+
     def goal_cb(self, msg):
         self.goal = Utils.get_x_y_theta_from_pose(msg.pose)
+        rospy.loginfo('Received new goal')
         rospy.loginfo(self.goal)
+        self.moving_backward = False
         if self.plan is not None:
             self.plan = None
             rospy.logwarn('Preempting current goal. User requested another goal')
@@ -303,9 +229,19 @@ class BasicNavigation(object):
             response = self.call_global_planner(req)
             if len(response.path) > 0:
                 plan = response.path
+            else:
+                rospy.logerr('Global planner failed.')
+                rospy.logerr('ABORTING')
+                self.goal = None
+                self.moving_backward = False
+                self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
+                return
         except rospy.ServiceException as e:
             rospy.logerr('Global planner failed.')
+            rospy.logerr('ABORTING')
+            self.moving_backward = False
             rospy.logerr(str(e))
+            self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
             return
 
         first_pose = Utils.get_x_y_theta_from_pose(plan[0].pose)
@@ -316,6 +252,11 @@ class BasicNavigation(object):
         for i in range(0, len(plan), index_offset):
             self.plan.append(plan[i])
         self.plan.append(plan[-1])
+
+        if len(plan) > 1:
+            # removing the first wp if the plan has more than 1 wp
+            # this is because the plan starts at the current position of the robot
+            self.plan.pop(0)
 
         # publish path
         path_msg = Path()
@@ -348,7 +289,7 @@ class BasicNavigation(object):
         # Assumption: costmap's global_frame is map
         :x: float
         :y: float
-        
+
         :returns: int (between -1 and 100)
         """
         costmap_origin_x = self.costmap_msg.info.origin.position.x
@@ -364,15 +305,26 @@ class BasicNavigation(object):
         return self.costmap_msg.data[j * self.costmap_msg.info.width + i]
 
     def _get_vel_based_on_costmap(self):
-        future_pos = (self.curr_pos[0] + self.future_pos_lookahead_dist * math.cos(self.curr_pos[2]),
-                      self.curr_pos[1] + self.future_pos_lookahead_dist * math.sin(self.curr_pos[2]))
+        current_heading = self.curr_pos[2]
+        if self.moving_backward:
+            current_heading = Utils.get_reverse_angle(current_heading)
+        future_pos = (self.curr_pos[0] + self.future_pos_lookahead_dist * math.cos(current_heading),
+                      self.curr_pos[1] + self.future_pos_lookahead_dist * math.sin(current_heading))
+        collision_point = PointStamped()
+        collision_point.header.stamp = rospy.Time.now()
+        collision_point.header.frame_id = self.global_frame
+        collision_point.point.x = future_pos[0]
+        collision_point.point.y = future_pos[1]
+        self._collision_lookahead_point_pub.publish(collision_point)
         future_costmap_value = self._get_costmap_value_at(*future_pos)
         future_vel = self.max_linear_vel - (future_costmap_value * self.costmap_to_vel_multiplier)
         return future_vel
-        
+
     def publish_zero_vel(self):
         self._cmd_vel_pub.publish(Utils.get_twist())
 
+    def publish_nav_feedback(self, status):
+        self._nav_feedback_pub.publish(ManeuverNavFeedback(status=status))
 
 if __name__ == "__main__":
     rospy.init_node('basic_navigation')
@@ -385,4 +337,5 @@ if __name__ == "__main__":
             RATE.sleep()
     except Exception as e:
         rospy.logerr(str(e))
+        traceback.print_exc()
     rospy.loginfo('Exiting.')
