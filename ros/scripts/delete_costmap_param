@@ -1,0 +1,9 @@
+#! /bin/bash
+
+move_base_params="$(rosparam list | grep costmap)"
+# echo $move_base_params
+for i in $move_base_params; do
+    echo $i
+    rosparam delete "$i"
+done
+
