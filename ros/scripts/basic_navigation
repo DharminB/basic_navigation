@@ -25,8 +25,10 @@ class BasicNavigation(object):
         self.curr_pos = None
         self.plan = None
         self.reached_goal_once = False
+        self.moving_backward = False
         self.global_frame = rospy.get_param('~global_frame', 'map')
         self.use_global_planner = rospy.get_param('~use_global_planner', False)
+        self.allow_backward_motion = rospy.get_param('~allow_backward_motion', False)
         self.num_of_retries = rospy.get_param('~num_of_retries', 3)
         self.retry_attempts = 0
 
@@ -116,6 +118,7 @@ class BasicNavigation(object):
                 self.publish_nav_feedback(ManeuverNavFeedback.SUCCESS)
                 self.goal = None
                 self.plan = None
+                self.moving_backward = False
                 self.reached_goal_once = False
                 return
             else:
@@ -126,8 +129,13 @@ class BasicNavigation(object):
             self.plan.pop(0)
 
         heading = math.atan2(curr_goal[1]-self.curr_pos[1], curr_goal[0]-self.curr_pos[0])
-        # heading_diff = heading - self.curr_pos[2]
         heading_diff = Utils.get_shortest_angle(heading, self.curr_pos[2])
+        if self.allow_backward_motion:
+            heading_diff_backward = Utils.get_shortest_angle(heading,
+                                                             Utils.get_reverse_angle(self.curr_pos[2]))
+            if abs(heading_diff) > abs(heading_diff_backward):
+                self.moving_backward = True
+                heading_diff = heading_diff_backward
         if abs(heading_diff) > self.heading_tolerance:
             self._rotate_in_place(theta_error=heading_diff)
         else:
@@ -156,12 +164,15 @@ class BasicNavigation(object):
                 self.publish_zero_vel()
                 self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 self.goal = None
+                self.moving_backward = False
             return
 
         future_vel_prop_raw = pos_error * self.p_linear
         future_vel_prop = Utils.clip(future_vel_prop_raw, self.max_linear_vel, self.min_linear_vel)
 
         x_vel = min(future_vel_costmap, future_vel_prop)
+        if self.moving_backward:
+            x_vel *= -1
         theta_vel_raw = theta_error * self.p_theta
         theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
         self._cmd_vel_pub.publish(Utils.get_twist(x=x_vel, y=0.0, theta=theta_vel))
@@ -177,6 +188,8 @@ class BasicNavigation(object):
                           str(self.recovery_motion_duration) + ' seconds)')
             start_time = rospy.get_time()
             recovery_twist = Utils.get_twist(x=self.recovery_vel)
+            if self.moving_backward:
+                recovery_twist.linear.x *= -1
             while rospy.get_time() < start_time + self.recovery_motion_duration:
                 rospy.sleep(0.1)
                 self._cmd_vel_pub.publish(recovery_twist)
@@ -185,7 +198,9 @@ class BasicNavigation(object):
 
     def goal_cb(self, msg):
         self.goal = Utils.get_x_y_theta_from_pose(msg.pose)
+        rospy.loginfo('Received new goal')
         rospy.loginfo(self.goal)
+        self.moving_backward = False
         if self.plan is not None:
             self.plan = None
             rospy.logwarn('Preempting current goal. User requested another goal')
@@ -216,6 +231,7 @@ class BasicNavigation(object):
                 rospy.logerr('Global planner failed.')
                 rospy.logerr('ABORTING')
                 self.goal = None
+                self.moving_backward = False
                 self.publish_nav_feedback(ManeuverNavFeedback.FAILURE_OBSTACLES)
                 return
         except rospy.ServiceException as e:
@@ -281,8 +297,11 @@ class BasicNavigation(object):
         return self.costmap_msg.data[j * self.costmap_msg.info.width + i]
 
     def _get_vel_based_on_costmap(self):
-        future_pos = (self.curr_pos[0] + self.future_pos_lookahead_dist * math.cos(self.curr_pos[2]),
-                      self.curr_pos[1] + self.future_pos_lookahead_dist * math.sin(self.curr_pos[2]))
+        current_heading = self.curr_pos[2]
+        if self.moving_backward:
+            current_heading = Utils.get_reverse_angle(current_heading)
+        future_pos = (self.curr_pos[0] + self.future_pos_lookahead_dist * math.cos(current_heading),
+                      self.curr_pos[1] + self.future_pos_lookahead_dist * math.sin(current_heading))
         collision_point = PointStamped()
         collision_point.header.stamp = rospy.Time.now()
         collision_point.header.frame_id = self.global_frame

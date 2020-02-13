@@ -1,6 +1,7 @@
 global_frame: 'map'
 use_global_planner: True
 num_of_retries: 5
+allow_backward_motion: True
 
 # recovery
 recovery_enabled: True

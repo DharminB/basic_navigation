@@ -89,6 +89,20 @@ class Utils(object):
         return math.atan2(math.sin(angle1 - angle2), math.cos(angle1 - angle2))
 
     @staticmethod
+    def get_reverse_angle(angle):
+        """Compute the angle facing opposite of given angle and ensures that the 
+        returned angle is between pi and -pi
+        ASSUMPTION: angle is always between pi and -pi
+
+        :angle: float
+        :returns: float
+        """
+        reverse_angle = angle - math.pi
+        if reverse_angle < -math.pi:
+            reverse_angle = reverse_angle + (2 * math.pi)
+        return reverse_angle
+
+    @staticmethod
     def get_distance(delta_x, delta_y):
         """Compute cartesian distance given individual distance in x and y axis
 
