@@ -11,9 +11,6 @@
     <arg name="use_global_planner" default="true"/>
 
     <node pkg="costmap_2d" name="local_costmap" type="costmap_2d_node" output="screen" >
-        <rosparam command="load" ns="global_costmap"
-                  file="$(find basic_navigation)/ros/config/global_costmap_test.yaml"/>
-
         <rosparam command="load" ns="costmap"
                   file="$(find basic_navigation)/ros/config/costmap_test.yaml"/>
     </node>
