@@ -13,9 +13,6 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <!-- <build_depend>ropod_sim_model</build_depend> -->
-  <!-- <exec_depend>ropod_sim_model</exec_depend> -->
-
   <export>
   </export>
 
