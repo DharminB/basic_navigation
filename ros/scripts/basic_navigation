@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import tf
 import copy
 import math
 import rospy
@@ -27,6 +28,7 @@ class BasicNavigation(object):
         self.reached_goal_once = False
         self.moving_backward = False
         self.global_frame = rospy.get_param('~global_frame', 'map')
+        self.robot_frame = rospy.get_param('~robot_frame', 'load/base_link')
         self.use_global_planner = rospy.get_param('~use_global_planner', False)
         self.allow_backward_motion = rospy.get_param('~allow_backward_motion', False)
         self.num_of_retries = rospy.get_param('~num_of_retries', 3)
@@ -60,6 +62,8 @@ class BasicNavigation(object):
 
         self.costmap_to_vel_multiplier = (self.max_linear_vel-self.min_linear_vel)/max_safe_costmap_val
 
+        self._tf_listener = tf.TransformListener()
+
         # Publishers
         self._cmd_vel_pub = rospy.Publisher('~cmd_vel', Twist, queue_size=1)
         self._path_pub = rospy.Publisher('~path', Path, queue_size=1)
@@ -73,7 +77,7 @@ class BasicNavigation(object):
         # Subscribers
         costmap_sub = rospy.Subscriber('~costmap', OccupancyGrid, self.costmap_cb)
         goal_sub = rospy.Subscriber('~goal', PoseStamped, self.goal_cb)
-        localisation_sub = rospy.Subscriber('~localisation', PoseWithCovarianceStamped, self.localisation_cb)
+        # localisation_sub = rospy.Subscriber('~localisation', PoseWithCovarianceStamped, self.localisation_cb)
 
         # Service client
         if self.use_global_planner:
@@ -90,6 +94,8 @@ class BasicNavigation(object):
         """
         Main event loop
         """
+        self.get_current_position_from_tf()
+
         if self.goal is None:
             return
 
@@ -207,11 +213,23 @@ class BasicNavigation(object):
             self.plan = None
             rospy.logwarn('Preempting current goal. User requested another goal')
 
-    def localisation_cb(self, msg):
-        self.curr_pos = Utils.get_x_y_theta_from_pose(msg.pose.pose)
+    # def localisation_cb(self, msg):
+    #     self.curr_pos = Utils.get_x_y_theta_from_pose(msg.pose.pose)
+    #     print(self.curr_pos)
 
     def costmap_cb(self, msg):
         self.costmap_msg = msg
+
+    def get_current_position_from_tf(self):
+        try:
+            trans, rot = self._tf_listener.lookupTransform(self.global_frame,
+                                                           self.robot_frame,
+                                                           rospy.Time(0))
+            _, _, yaw = tf.transformations.euler_from_quaternion(rot)
+            self.curr_pos = (trans[0], trans[1], yaw)
+        except Exception as e:
+            rospy.logerr(str(e))
+            self.curr_pos = None
 
     def _get_global_plan(self):
         """Call global planner to get a plan based on current position and goal
@@ -252,11 +270,6 @@ class BasicNavigation(object):
         for i in range(0, len(plan), index_offset):
             self.plan.append(plan[i])
         self.plan.append(plan[-1])
-
-        if len(plan) > 1:
-            # removing the first wp if the plan has more than 1 wp
-            # this is because the plan starts at the current position of the robot
-            self.plan.pop(0)
 
         # publish path
         path_msg = Path()

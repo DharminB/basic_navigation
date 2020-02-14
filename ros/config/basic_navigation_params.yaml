@@ -1,7 +1,8 @@
 global_frame: 'map'
+robot_frame: 'load/base_link'
 use_global_planner: True
 num_of_retries: 5
-allow_backward_motion: True
+allow_backward_motion: False
 
 # recovery
 recovery_enabled: True

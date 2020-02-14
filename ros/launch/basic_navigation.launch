@@ -4,7 +4,7 @@
     <arg name="costmap_topic" default="/local_costmap/costmap/costmap"/>
     <arg name="goal_topic" default="/move_base_simple/goal"/>
     <arg name="localisation_topic" default="/amcl_pose"/>
-    <arg name="cmd_vel_topic" default="/ropod/cmd_vel"/>
+    <arg name="cmd_vel_topic" default="/load/cmd_vel"/>
     <arg name="global_planner_service" default="/global_planner/make_plan"/>
     <arg name="nav_feedback_topic" default="/route_navigation/feedback"/>
 
