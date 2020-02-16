@@ -209,6 +209,7 @@ class BasicNavigation(object):
         rospy.loginfo('Received new goal')
         rospy.loginfo(self.goal)
         self.moving_backward = False
+        self.allow_backward_motion = rospy.get_param('~allow_backward_motion', False)
         if self.plan is not None:
             self.plan = None
             rospy.logwarn('Preempting current goal. User requested another goal')
