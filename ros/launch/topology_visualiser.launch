@@ -1,7 +1,9 @@
 <?xml version='1.0'?>
 <launch>
 
-    <arg name="map_file" default="$(find ropod_navigation_test)/../occupancy_grids/brsu/brsu-c-floor0_osm/map.yaml" />
+    <arg name="world_model_name" default="brsu"/>
+    <arg name="map_file"
+         default="$(find ropod_sim)/world_description/occupancy_grids/$(arg world_model_name).yaml" />
     <arg name="network_file" default="$(find basic_navigation)/ros/config/brsu_network.yaml"/>
 
     <node pkg="basic_navigation" type="topology_visualiser_node" name="topology_visualiser"
@@ -10,8 +12,9 @@
     </node>
 
     <!-- Run the map server -->
-    <node name="map_server" pkg="map_server" type="map_server" output="screen" args="$(arg map_file)" />
+    <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
 
     <!-- rviz for visualisation -->
-    <node pkg="rviz" type="rviz" name="topology_rviz" args="-d $(find basic_navigation)/ros/config/topology_visualiser.rviz" />
+    <node pkg="rviz" type="rviz" name="topology_rviz"
+          args="-d $(find basic_navigation)/ros/config/topology_visualiser.rviz" />
 </launch>

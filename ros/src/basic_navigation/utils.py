@@ -346,7 +346,7 @@ class Utils(object):
         return (x, y)
 
     @staticmethod
-    def get_2_dof_interactive_marker(marker_name, frame, x=0.0, y=0.0):
+    def get_2_dof_interactive_marker(marker_name, frame, x=0.0, y=0.0, r=1.0, g=0.0, b=0.0):
         """Return an interactive marker with 2 degree of freedom (X and Y axis)
         in `frame` at (`x`, `y`, 0.0) position named `name`
 
@@ -354,6 +354,9 @@ class Utils(object):
         :frame: string
         :x: int
         :y: int
+        :r: float
+        :g: float
+        :b: float
         :returns: visualization_msgs.InteractiveMarker
 
         """
@@ -366,37 +369,24 @@ class Utils(object):
         # int_marker.description = "Simple 2-DOF Control"
 
         # create a grey box marker
-        box_marker = Marker()
-        box_marker.type = Marker.SPHERE
-        box_marker.scale.x = box_marker.scale.y = box_marker.scale.z = 0.1
-        box_marker.color.r = box_marker.color.a = 1.0
-        box_marker.color.g = box_marker.color.b = 0.0
+        sphere_marker = Marker()
+        sphere_marker.type = Marker.SPHERE
+        sphere_marker.scale.x = 0.2
+        sphere_marker.scale.y = 0.2
+        sphere_marker.scale.z = 0.2
+        sphere_marker.color.r = r
+        sphere_marker.color.g = g
+        sphere_marker.color.b = b
+        sphere_marker.color.a = 1.0
 
-        # create a non-interactive control which contains the box
-        box_control = InteractiveMarkerControl()
-        box_control.always_visible = True
-        box_control.markers.append( box_marker )
+        sphere_control = InteractiveMarkerControl()
+        sphere_control.always_visible = True
+        sphere_control.markers.append(sphere_marker)
+        sphere_control.name = "move_x_y"
+        sphere_control.interaction_mode = InteractiveMarkerControl.MOVE_PLANE
+        sphere_control.orientation.w = sphere_control.orientation.y = 1.0
+        int_marker.controls.append(sphere_control)
 
-        # add the control to the interactive marker
-        int_marker.controls.append( box_control )
-
-        # create a control which will move the box
-        # this control does not contain any markers,
-        # which will cause RViz to insert two arrows
-        rotate_control = InteractiveMarkerControl()
-        rotate_control.name = "move_x"
-        rotate_control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-
-        # add the control to the interactive marker
-        int_marker.controls.append(rotate_control);
-
-        rotate_control2 = InteractiveMarkerControl()
-        rotate_control2.orientation.z = rotate_control2.orientation.w = 0.707
-        rotate_control2.name = "move_y"
-        rotate_control2.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-
-        # add the control to the interactive marker
-        int_marker.controls.append(rotate_control2);
         return int_marker
 
     @staticmethod

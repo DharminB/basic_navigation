@@ -31,7 +31,7 @@ long_dist:
 
 strict:
     footprint: [[-0.33, 0.33], [0.33, 0.33], [0.33, -0.33], [-0.33, -0.33]]
-    allow_backward_motion: True
+    allow_backward_motion: False
     # tolerances
     heading_tolerance: 0.5
     goal_dist_tolerance: 0.1
