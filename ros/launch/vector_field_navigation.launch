@@ -1,0 +1,20 @@
+<?xml version='1.0'?>
+<launch>
+
+    <arg name="robot_name" default="ropod_sim" />
+    <arg name="laser_topic" default="/load/scan"/>
+    
+    <arg name="odom_topic" default="/load/odom"/>
+    <arg name="goal_topic" default="/move_base_simple/goal"/>
+    <arg name="localisation_topic" default="/amcl_pose"/>
+    <arg name="cmd_vel_topic" default="/load/cmd_vel"/>
+
+    <node pkg="basic_navigation" name="vector_field_navigation" type="vector_field_navigation_node" output="screen" >
+        <rosparam command="load"
+                  file="$(find basic_navigation)/ros/config/$(arg robot_name)/vec_field_nav_params.yaml" />
+        <remap from="~laser" to="$(arg laser_topic)"/>
+        <remap from="~odom" to="$(arg odom_topic)"/>
+        <remap from="~goal" to="$(arg goal_topic)"/>
+        <remap from="~cmd_vel" to="$(arg cmd_vel_topic)"/>
+    </node>
+</launch>

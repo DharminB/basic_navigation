@@ -198,7 +198,8 @@ class Utils(object):
 
         """
         sign = 1.0 if value > 0.0 else -1.0
-        return sign * min(max_allowed, max(min_allowed, abs(value)))
+        # return sign * min(max_allowed, max(min_allowed, abs(value)))
+        return min(max_allowed, max(min_allowed, value))
 
     @staticmethod
     def get_twist(x=0.0, y=0.0, theta=0.0):
@@ -277,6 +278,29 @@ class Utils(object):
             x = sign_x * (radius * math.sin(theta))
             y = sign_theta * radius * (1 - math.cos(theta))
             points.append((x, y, theta))
+        return points
+
+    @staticmethod
+    def get_future_poses_holonomic(vel_x, vel_y, num_of_points, future_time):
+        """
+        Calculate a bunch of poses(x, y, theta) where the robot would be
+        (in base_link) in future when certain velocity are executed.
+        The last point would be the position of robot almost at `future_time` and first
+        point is the robot's current position.
+
+        :vel_x: float (forward linear velocity)
+        :vel_y: float (lateral linear velocity)
+        :num_of_points: int (number of points to generate)
+        :future_time: float (seconds)
+        :returns: list of tuples (float, float, float)
+
+        """
+        x_dist = vel_x * future_time
+        y_dist = vel_y * future_time
+
+        x_inc = x_dist/num_of_points
+        y_inc = y_dist/num_of_points
+        points = [(i*x_inc, i*y_inc, 0.0) for i in range(num_of_points)]
         return points
 
     @staticmethod
@@ -406,9 +430,23 @@ class Utils(object):
     def get_path_length_pose_stamped(pose_stamped_list):
         """Calculate the length of path defined by pose stamped msgs
 
-        :pose_stamped_list list of geometry_msgs.PoseStamped
+        :pose_stamped_list: list of geometry_msgs.PoseStamped
         :returns: float
 
         """
         poses = [Utils.get_x_y_theta_from_pose(p.pose) for p in pose_stamped_list]
         return Utils.get_path_length(poses)
+
+    @staticmethod
+    def get_normalised(vector):
+        """Calculate the normalised vector
+
+        :vector: [float, float]
+        :returns: [float, float]
+
+        """
+        norm = Utils.get_distance(*vector)
+        norm_vector = [0.0, 0.0]
+        norm_vector[0] = vector[0]/norm
+        norm_vector[1] = vector[1]/norm
+        return norm_vector
