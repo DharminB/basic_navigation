@@ -1,0 +1,17 @@
+<?xml version='1.0'?>
+<launch>
+
+    <arg name="map_file" default="$(find ropod_navigation_test)/../occupancy_grids/brsu/brsu-c-floor0_osm/map.yaml" />
+    <arg name="network_file" default="$(find basic_navigation)/ros/config/brsu_network.yaml"/>
+
+    <node pkg="basic_navigation" type="topology_visualiser_node" name="topology_visualiser"
+          respawn="false" output="screen">
+        <param name="network_file" value="$(arg network_file)"/>
+    </node>
+
+    <!-- Run the map server -->
+    <node name="map_server" pkg="map_server" type="map_server" output="screen" args="$(arg map_file)" />
+
+    <!-- rviz for visualisation -->
+    <node pkg="rviz" type="rviz" name="topology_rviz" args="-d $(find basic_navigation)/ros/config/topology_visualiser.rviz" />
+</launch>

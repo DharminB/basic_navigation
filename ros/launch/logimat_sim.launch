@@ -1,35 +1,39 @@
 <?xml version="1.0"?>
 <launch>
-    <env name="GAZEBO_RESOURCE_PATH" value="$(find ropod_gazebo)/common/resources/:$(optenv GAZEBO_MODEL_PATH)"/>
-    <env name="GAZEBO_MODEL_PATH" value="$(find ropod_gazebo)/common/models:$(optenv GAZEBO_MODEL_PATH)"/>
-
     <!-- MAP PARAMS -->
-    <arg name="map_file" default="$(find ropod_navigation_test)/../occupancy_grids/brsu/brsu-c-floor0_osm/map.yaml" />
+    <arg name="map_file" default="$(find ropod_navigation_test)/../occupancy_grids/logimat/exhibition-hall/map.yaml" />
     <!-- offset between gazebo world origin and map origin -->
-    <arg name="init_x" default="-1.0" />
-    <arg name="init_y" default="6.5" />
+    <arg name="init_x" default="-3.0" />
+    <arg name="init_y" default="3.0" />
     <arg name="init_theta" default="0.0" />
     <arg name="robot_id" default="load" />
-    <arg name="map_offset_x" default="59.95" />
-    <arg name="map_offset_y" default="25.6" />
-    <arg name="map_offset_theta" default="0.0" />
+    <arg name="map_offset_x" default="-0.8" />
+    <arg name="map_offset_y" default="-0.95" />
+    <arg name="map_offset_theta" default="0.3" />
     <arg name="model" default="ropod"/>
     <arg name="model_path" default="$(find ropod_description)/xacro/$(arg model).xacro"/>
-    <arg name="world" default="brsu_ground_floor"/>
     <arg name="paused" default="false"/>
     <arg name="use_sim_time" default="true"/>
     <arg name="gui" default="false"/>
     <arg name="debug" default="false"/>
     <arg name="start_rviz" default="true"/>
 
+    <arg name="world_model_name" default="logimat_exhibition_hall"/>
+    <arg name="world_model" default="$(find basic_navigation)/ros/config/$(arg world_model_name).xacro"/>
+
     <!-- Load the world -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch">
-        <arg name="world_name" value="$(find ropod_gazebo)/common/worlds/$(arg world).world"/>
         <arg name="debug" value="$(arg debug)" />
         <arg name="gui" value="$(arg gui)" />
         <arg name="paused" value="$(arg paused)"/>
         <arg name="use_sim_time" value="$(arg use_sim_time)"/>
     </include>
+
+    <param name="world_description" command="xacro --inorder $(arg world_model)" />
+
+    <!-- spawn uploaded world model -->
+    <node pkg="gazebo_ros" type="spawn_model" name="gazebo_world_model" respawn="false" output="screen"
+          args="-urdf -param world_description -model world -x 0.0 -y 0.0 -z 0.0" />
 
     <!-- Load the robot description from the urdf model -->
 	<group ns="$(arg robot_id)">

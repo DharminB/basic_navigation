@@ -1,35 +1,22 @@
 <?xml version='1.0'?>
 <launch>
 
-    <arg name="costmap_topic" default="/local_costmap/costmap/costmap"/>
-    <arg name="goal_topic" default="/move_base_simple/goal"/>
+    <!-- <arg name="robot_name" default="ropod_003" /> -->
+    <!-- <arg name="laser_topic" default="/projected_scan"/> -->
+    <arg name="robot_name" default="ropod_sim" />
+    <arg name="laser_topic" default="/load/scan"/>
+    
+    <arg name="odom_topic" default="/load/odom"/>
+    <arg name="goal_topic" default="/move_base_simple/basic_goal"/>
+    <arg name="localisation_topic" default="/amcl_pose"/>
     <arg name="cmd_vel_topic" default="/load/cmd_vel"/>
-    <arg name="global_planner_service" default="/global_planner/make_plan"/>
-    <arg name="nav_feedback_topic" default="/route_navigation/feedback"/>
-
-    <!-- NOTE: ns for costmap has to be "costmap" as it is hardcoded in costmap_2d_node -->
-    <node pkg="costmap_2d" name="local_costmap" type="costmap_2d_node" output="screen" >
-        <rosparam command="load" ns="costmap"
-                  file="$(find basic_navigation)/ros/config/common_costmap_params.yaml"/>
-        <rosparam command="load" ns="costmap"
-                  file="$(find basic_navigation)/ros/config/local_costmap_params.yaml"/>
-    </node>
-
-    <!-- global planner will also launch global costmap -->
-    <node pkg="navfn" name="global_planner" type="navfn_node" output="screen" >
-        <rosparam command="load" ns="costmap"
-                  file="$(find basic_navigation)/ros/config/common_costmap_params.yaml"/>
-        <rosparam command="load" ns="costmap"
-                  file="$(find basic_navigation)/ros/config/global_costmap_params.yaml"/>
-    </node>
 
     <node pkg="basic_navigation" name="basic_navigation" type="basic_navigation_node" output="screen" >
         <rosparam command="load"
-                  file="$(find basic_navigation)/ros/config/basic_navigation_params.yaml" />
-        <param name="global_planner_service" type="string" value="$(arg global_planner_service)"/>
-        <remap from="~costmap" to="$(arg costmap_topic)"/>
+                  file="$(find basic_navigation)/ros/config/$(arg robot_name)/basic_navigation_params.yaml" />
+        <remap from="~laser" to="$(arg laser_topic)"/>
+        <remap from="~odom" to="$(arg odom_topic)"/>
         <remap from="~goal" to="$(arg goal_topic)"/>
         <remap from="~cmd_vel" to="$(arg cmd_vel_topic)"/>
-        <remap from="~nav_feedback" to="$(arg nav_feedback_topic)"/>
     </node>
 </launch>

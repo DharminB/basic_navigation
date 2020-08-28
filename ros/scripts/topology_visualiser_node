@@ -1,0 +1,18 @@
+#! /usr/bin/env python
+
+import rospy
+from basic_navigation.topology_visualiser import TopologyVisualiser
+
+if __name__ == "__main__":
+    rospy.init_node('topology_visualiser')
+    network_file = rospy.get_param('~network_file', None)
+    if network_file is None:
+        rospy.logfatal('No network file provided. Exiting.')
+    else:
+        TV = TopologyVisualiser(network_file)
+        rospy.spin()
+        print('\n\n')
+        CHOICE = raw_input('Would you like to save changes? [Y/n] : ')
+        if CHOICE in ["", "y", "Y"]:
+            TV.save()
+        rospy.loginfo('Exiting.')

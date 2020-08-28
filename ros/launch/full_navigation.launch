@@ -1,0 +1,43 @@
+<?xml version='1.0'?>
+<launch>
+
+    <!-- <arg name="robot_name" default="ropod_003" /> -->
+    <!-- <arg name="laser_topic" default="/projected_scan"/> -->
+    <arg name="robot_name" default="ropod_sim" />
+    <arg name="laser_topic" default="/load/scan"/>
+    <arg name="network_file_name" default="brsu_network"/>
+
+    <arg name="odom_topic" default="/load/odom"/>
+    <arg name="localisation_topic" default="/amcl_pose"/>
+    <arg name="cmd_vel_topic" default="/load/cmd_vel"/>
+
+    <arg name="topological_goal_topic" default="/move_base_simple/goal"/>
+    <arg name="basic_goal_topic" default="/move_base_simple/basic_goal"/>
+    <arg name="cart_attached_topic" default="/route_navigation/set_load_attached"/>
+
+    <node pkg="basic_navigation" type="topological_navigation_node" name="topological_navigation" output="screen">
+        <remap from="~bn_feedback" to="/basic_navigation/feedback" />
+        <remap from="~bn_mode" to="/basic_navigation/switch_mode" />
+        <remap from="~cancel_bn" to="/basic_navigation/cancel" />
+        <remap from="~bn_goal_path" to="/basic_navigation/goal_path" />
+        <remap from="~laser" to="$(arg laser_topic)" />
+        <remap from="~cmd_vel" to="$(arg cmd_vel_topic)" />
+        <remap from="~goal" to="$(arg topological_goal_topic)"/>
+        <remap from="~cart_attached" to="$(arg cart_attached_topic)"/>
+
+        <param name="network_file" value="$(find basic_navigation)/ros/config/$(arg network_file_name).yaml"/>
+        <rosparam command="load"
+                  file="$(find basic_navigation)/ros/config/$(arg robot_name)/topological_navigation_params.yaml" />
+    </node>
+
+
+    <node pkg="basic_navigation" name="basic_navigation" type="basic_navigation_node" output="screen" >
+        <rosparam command="load"
+                  file="$(find basic_navigation)/ros/config/$(arg robot_name)/basic_navigation_params.yaml" />
+        <remap from="~laser" to="$(arg laser_topic)"/>
+        <remap from="~odom" to="$(arg odom_topic)"/>
+        <remap from="~goal" to="$(arg basic_goal_topic)"/>
+        <remap from="~localisation" to="$(arg localisation_topic)"/>
+        <remap from="~cmd_vel" to="$(arg cmd_vel_topic)"/>
+    </node>
+</launch>

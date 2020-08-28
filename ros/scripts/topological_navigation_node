@@ -2,16 +2,17 @@
 
 import rospy
 import traceback
-from basic_navigation.basic_navigation_class import BasicNavigation
+from basic_navigation.topological_navigation import TopologicalNavigation
 
 if __name__ == "__main__":
-    rospy.init_node('basic_navigation')
-    BN = BasicNavigation()
-    CONTROL_RATE = rospy.get_param('~control_rate', 1.0)
+    rospy.init_node('topological_navigation')
+    TN = TopologicalNavigation()
+    CONTROL_RATE = rospy.get_param('~control_rate', 2.0)
     RATE = rospy.Rate(CONTROL_RATE)
+    rospy.on_shutdown(TN._reset_state)
     try:
         while not rospy.is_shutdown():
-            BN.run_once()
+            TN.run_once()
             RATE.sleep()
     except Exception as e:
         if type(e) != rospy.exceptions.ROSInterruptException:

@@ -1,0 +1,82 @@
+global_frame: 'map'
+robot_frame: 'load/base_link'
+control_rate: 5.0
+laser_frame: '/rslidar_projected_front'
+
+long_dist:
+    footprint: [[-0.33, 0.33], [0.33, 0.33], [0.33, -0.33], [-0.33, -0.33]]
+    allow_backward_motion: False
+    # tolerances
+    heading_tolerance: 0.5
+    goal_dist_tolerance: 0.5
+    goal_theta_tolerance: 1.0
+    latch_xy_goal: True
+    waypoint_goal_tolerance: 0.5
+    goal_path_start_point_tolerance: 1.5
+    forward_safety_dist: 0.2
+    footprint_padding: 0.1
+
+    # controller params
+    control_rate: 5.0
+    p_theta_in_place: 5.0
+    p_theta: 1.0
+    c_theta: 10.0
+    p_linear: 0.8
+    max_theta_vel: 1.0
+    min_theta_vel: 0.005
+    max_linear_vel: 0.8
+    min_linear_vel: 0.1
+    max_linear_acc: 0.5
+    future_pos_lookahead_time: 3.0
+
+strict:
+    footprint: [[-0.33, 0.33], [0.33, 0.33], [0.33, -0.33], [-0.33, -0.33]]
+    allow_backward_motion: True
+    # tolerances
+    heading_tolerance: 0.5
+    goal_dist_tolerance: 0.1
+    goal_theta_tolerance: 0.1
+    latch_xy_goal: True
+    waypoint_goal_tolerance: 0.3
+    goal_path_start_point_tolerance: 1.0
+    forward_safety_dist: 0.1
+    footprint_padding: 0.02
+
+    # controller params
+    p_theta_in_place: 5.0
+    p_theta: 1.0
+    c_theta: 10.0
+    p_linear: 1.0
+    max_theta_vel: 0.5
+    min_theta_vel: 0.005
+    max_linear_vel: 0.3
+    min_linear_vel: 0.1
+    max_linear_acc: 0.5
+    future_pos_lookahead_time: 3.0
+
+cart:
+    footprint: [[-0.1, 0.36], [1.3, 0.36], [1.3, -0.36], [-0.1, -0.36]] # with mobidik
+    allow_backward_motion: False
+    # tolerances
+    heading_tolerance: 0.5
+    goal_dist_tolerance: 0.5
+    goal_theta_tolerance: 1.0
+    latch_xy_goal: True
+    waypoint_goal_tolerance: 0.5
+    goal_path_start_point_tolerance: 1.5
+    forward_safety_dist: 0.2
+    footprint_padding: 0.1
+
+    # controller params
+    control_rate: 5.0
+    p_theta_in_place: 1.0
+    p_theta: 1.0
+    c_theta: 10.0
+    p_linear: 0.8
+    max_theta_vel: 0.3
+    min_theta_vel: 0.005
+    max_linear_vel: 0.7
+    min_linear_vel: 0.1
+    max_linear_acc: 0.5
+    future_pos_lookahead_time: 3.0
+
