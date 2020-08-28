@@ -1,10 +1,10 @@
 <?xml version='1.0'?>
 <launch>
 
-    <arg name="robot_name" default="ropod_003" />
-    <arg name="laser_topic" default="/projected_scan"/>
-    <!-- <arg name="robot_name" default="ropod_sim" /> -->
-    <!-- <arg name="laser_topic" default="/load/scan"/> -->
+    <!-- <arg name="robot_name" default="ropod_003" /> -->
+    <!-- <arg name="laser_topic" default="/projected_scan"/> -->
+    <arg name="robot_name" default="ropod_sim" />
+    <arg name="laser_topic" default="/load/scan"/>
 
     <arg name="cmd_vel_topic" default="/load/cmd_vel"/>
     <arg name="goal_topic" default="/move_base_simple/goal"/>
