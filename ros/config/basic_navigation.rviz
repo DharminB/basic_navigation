@@ -3,7 +3,10 @@ Panels:
     Help Height: 78
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
+      Expanded:
+        - /Vec Field Nav1
+        - /Vec Field Nav1/MarkerArray1
+        - /Vec Field Nav1/MarkerArray1/Status1
       Splitter Ratio: 0.506172836
     Tree Height: 442
   - Class: rviz/Selection
@@ -179,12 +182,12 @@ Visualization Manager:
       Unreliable: false
       Value: false
     - Class: rviz/Axes
-      Enabled: false
+      Enabled: true
       Length: 0.5
       Name: Axes
       Radius: 0.100000001
       Reference Frame: load/base_link
-      Value: false
+      Value: true
     - Class: rviz/Group
       Displays:
         - Alpha: 1
@@ -357,6 +360,14 @@ Visualization Manager:
           Topic: /vector_field_navigation/trajectory
           Unreliable: false
           Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /vector_field_navigation/field
+          Name: MarkerArray
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: true
       Enabled: true
       Name: Vec Field Nav
   Enabled: true
@@ -384,15 +395,15 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 13.3836117
+      Distance: 9.43335724
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.05766916
-        Y: -0.00108188391
+        X: -1.63748217
+        Y: 0.130085111
         Z: -5.7220459e-06
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007

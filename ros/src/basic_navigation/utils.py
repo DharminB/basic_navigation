@@ -189,7 +189,8 @@ class Utils(object):
 
     @staticmethod
     def clip(value, max_allowed=1.0, min_allowed=0.1):
-        """Clip the provided value to be between the given range
+        """Clip the provided value to be between the given range and maintain
+           the sign of value
 
         :value: float
         :max_allowed: float
@@ -198,7 +199,19 @@ class Utils(object):
 
         """
         sign = 1.0 if value > 0.0 else -1.0
-        # return sign * min(max_allowed, max(min_allowed, abs(value)))
+        return sign * min(max_allowed, max(min_allowed, abs(value)))
+
+    @staticmethod
+    def raw_clip(value, max_allowed=1.0, min_allowed=0.1):
+        """Clip the provided value to be between the given range without
+           maintaining the sign
+
+        :value: float
+        :max_allowed: float
+        :min_allowed: float
+        :returns: float
+
+        """
         return min(max_allowed, max(min_allowed, value))
 
     @staticmethod
