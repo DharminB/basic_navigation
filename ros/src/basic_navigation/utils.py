@@ -231,7 +231,7 @@ class Utils(object):
         return msg
 
     @staticmethod
-    def get_future_positions(vel_x, vel_theta, num_of_points, future_time):
+    def get_future_positions(vel_x, vel_y, vel_theta, num_of_points, future_time):
         """
         Calculate a bunch of points where the robot would be (in base_link) in future when 
         certain velocity are executed.
@@ -239,82 +239,44 @@ class Utils(object):
         point is the robot's current position.
 
         :vel_x: float (forward linear velocity)
+        :vel_y: float (lateral yaw velocity)
         :vel_theta: float (angular yaw velocity)
         :num_of_points: int (number of points to generate)
         :future_time: float (seconds)
         :returns: list of geometry_msgs.Point
 
         """
-        dist = abs(vel_x) * future_time
-        angular_dist = abs(vel_theta) * future_time
-        radius = dist/angular_dist
-
-        sign_x = 1 if vel_x > 0 else -1
-        sign_theta = 1 if vel_theta > 0 else -1
-
-        theta_inc = angular_dist/num_of_points
-        points = []
-        for i in range(num_of_points):
-            theta = i * theta_inc
-            x = sign_x * (radius * math.sin(theta))
-            y = sign_theta * radius * (1 - math.cos(theta))
-            points.append(Point(x=x, y=y, z=0.0))
+        poses = Utils.get_future_poses(vel_x, vel_y, vel_theta, num_of_points, future_time)
+        points = [Point(x=i[0], y=i[1], z=0.0) for i in poses]
         return points
 
     @staticmethod
-    def get_future_poses(vel_x, vel_theta, num_of_points, future_time):
-        """
-        Calculate a bunch of poses(x, y, theta) where the robot would be 
-        (in base_link) in future when certain velocity are executed.
-        The last point would be the position of robot almost at `future_time` and first
-        point is the robot's current position.
-
-        :vel_x: float (forward linear velocity)
-        :vel_theta: float (angular yaw velocity)
-        :num_of_points: int (number of points to generate)
-        :future_time: float (seconds)
-        :returns: list of tuples (float, float, float)
-
-        """
-        vel_theta = max(vel_theta, 0.0001)
-        dist = abs(vel_x) * future_time
-        angular_dist = abs(vel_theta) * future_time
-        radius = dist/angular_dist
-
-        sign_x = 1 if vel_x > 0 else -1
-        sign_theta = 1 if vel_theta > 0 else -1
-
-        theta_inc = angular_dist/num_of_points
-        points = []
-        for i in range(num_of_points):
-            theta = i * theta_inc
-            x = sign_x * (radius * math.sin(theta))
-            y = sign_theta * radius * (1 - math.cos(theta))
-            points.append((x, y, theta))
-        return points
-
-    @staticmethod
-    def get_future_poses_holonomic(vel_x, vel_y, num_of_points, future_time):
+    def get_future_poses(vel_x, vel_y, vel_theta, num_of_poses, future_time):
         """
         Calculate a bunch of poses(x, y, theta) where the robot would be
         (in base_link) in future when certain velocity are executed.
-        The last point would be the position of robot almost at `future_time` and first
-        point is the robot's current position.
+        The last point would be the position of robot almost at `future_time`
 
         :vel_x: float (forward linear velocity)
         :vel_y: float (lateral linear velocity)
-        :num_of_points: int (number of points to generate)
+        :vel_theta: float (angular velocity)
+        :num_of_poses: int (number of poses to generate)
         :future_time: float (seconds)
         :returns: list of tuples (float, float, float)
 
         """
-        x_dist = vel_x * future_time
-        y_dist = vel_y * future_time
-
-        x_inc = x_dist/num_of_points
-        y_inc = y_dist/num_of_points
-        points = [(i*x_inc, i*y_inc, 0.0) for i in range(num_of_points)]
-        return points
+        delta_t = future_time/float(num_of_poses)
+        vel_mat = tf.transformations.translation_matrix([vel_x*delta_t, vel_y*delta_t, 0.0])
+        rot_mat = tf.transformations.euler_matrix(0.0 ,0.0, vel_theta*delta_t)
+        vel_mat[:2, :2] = rot_mat[:2, :2]
+        pos_mat = tf.transformations.identity_matrix()
+        poses = []
+        for i in range(num_of_poses):
+            _, _, theta = tf.transformations.euler_from_matrix(pos_mat)
+            position = tf.transformations.translation_from_matrix(pos_mat)
+            poses.append((position[0], position[1], theta))
+            pos_mat = pos_mat.dot(vel_mat)
+        return poses
 
     @staticmethod
     def get_path_msg_from_poses(poses, frame_id):

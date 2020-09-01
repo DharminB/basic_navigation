@@ -135,10 +135,8 @@ class VectorFieldNavigation(object):
         x_vel = Utils.raw_clip(x_vel, self.max_linear_vel, -self.max_linear_vel)
         y_vel = Utils.raw_clip(y_vel, self.max_linear_vel, -self.max_linear_vel)
         theta_vel = Utils.raw_clip(theta_vel, self.max_theta_vel, -self.max_theta_vel)
-        # future_poses = Utils.get_future_poses(x_vel, theta_vel, num_of_points,
-        #                                       self.future_pos_lookahead_time)
-        future_poses = Utils.get_future_poses_holonomic(x_vel, y_vel, num_of_points,
-                                                        self.future_pos_lookahead_time)
+        future_poses = Utils.get_future_poses(x_vel, y_vel,theta_vel, num_of_points,
+                                              self.future_pos_lookahead_time)
         self._traj_pub.publish(Utils.get_path_msg_from_poses(future_poses, self.robot_frame))
         x_vel = Utils.raw_clip(x_vel, self._current_vel[0]+self.max_linear_acc,
                                   self._current_vel[0]-self.max_linear_acc)

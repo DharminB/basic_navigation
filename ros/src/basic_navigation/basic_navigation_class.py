@@ -111,7 +111,7 @@ class BasicNavigation(object):
         theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
 
         num_of_points = 10
-        future_poses = Utils.get_future_poses(0.0, theta_vel, num_of_points,
+        future_poses = Utils.get_future_poses(0.0, 0.0, theta_vel, num_of_points,
                                               self.future_pos_lookahead_time)
         collision_index = self.laser_utils.get_collision_index(future_poses)
         if collision_index == 0:
@@ -130,7 +130,7 @@ class BasicNavigation(object):
         future_vel_prop = Utils.clip(future_vel_prop_raw, self.max_linear_vel, self.min_linear_vel)
 
         num_of_points = 10
-        future_poses = Utils.get_future_poses(future_vel_prop, theta_vel, num_of_points,
+        future_poses = Utils.get_future_poses(future_vel_prop, 0.0, theta_vel, num_of_points,
                                               self.future_pos_lookahead_time)
         future_poses_with_safety = [list(pose) for pose in future_poses]
         for pose in future_poses_with_safety:
