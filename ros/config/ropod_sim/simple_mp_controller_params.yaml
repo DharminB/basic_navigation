@@ -1,0 +1,15 @@
+global_frame: 'map'
+robot_frame: 'load/base_link'
+control_rate: 5.0
+laser_frame: 'load/front_laser_link'
+
+footprint: [[-0.33, 0.33], [0.33, 0.33], [0.33, -0.33], [-0.33, -0.33]]
+footprint_padding: 0.02
+
+# controller params
+max_theta_vel: 0.5
+max_linear_vel: 0.5
+min_linear_vel: 0.05
+max_linear_acc: 0.1
+max_angular_acc: 0.1
+default_control_time: 1.0

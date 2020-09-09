@@ -1,0 +1,186 @@
+#! /usr/bin/env python
+
+from __future__ import print_function
+
+import tf
+import math
+import rospy
+import numpy as np
+from std_msgs.msg import Empty, String
+from nav_msgs.msg import Path, Odometry
+from geometry_msgs.msg import PoseStamped, PointStamped
+from geometry_msgs.msg import Twist, PoseWithCovarianceStamped
+
+from basic_navigation.utils import Utils
+from basic_navigation.laser_utils import LaserUtils
+
+class SimpleMPController(object):
+    def __init__(self):
+        # Publishers
+        self._debug_traj_pub = rospy.Publisher('~debug_traj', Path, queue_size=1)
+        self._goal_pub = rospy.Publisher('~local_goal', PoseWithCovarianceStamped, queue_size=1)
+
+        # Subscribers
+
+        # Class variables
+        self.global_frame = rospy.get_param('~global_frame', 'map')
+        self.robot_frame = rospy.get_param('~robot_frame', 'load/base_link')
+        self.default_control_time = rospy.get_param('~default_control_time', 1.0)
+
+        self._tf_listener = tf.TransformListener()
+
+        self.laser_utils = LaserUtils(debug=False, only_use_half=True)
+        footprint = rospy.get_param('~footprint', [[-0.33, 0.33], [0.33, 0.33], [0.33, -0.33], [-0.33, -0.33]])
+        self.laser_utils.set_footprint(footprint)
+        footprint_padding = rospy.get_param('~footprint_padding', 0.1)
+        self.laser_utils.set_footprint_padding(footprint_padding)
+
+        #      ((px   py   pa ), (vx   vy   va ), (tpx  tpy  tpa), (tvx  tvy  tva))
+        self.goal = ((1.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.1, 0.1, 0.1), (0.0, 0.0, 0.0))
+
+        rospy.sleep(1.0)
+        rospy.loginfo('Initialised')
+        # future_poses = Utils.get_future_poses(math.pi/2, 0.0, math.pi/2, 10, 1.0)
+
+    def test(self):
+        acc_list = [
+                (0.1, 0.0, 0.0),
+                (0.0, 0.0, 0.1),
+                (0.0, 0.0, 0.1),
+                (0.0, 0.0, 0.1),
+                (0.0, 0.0, 0.1),
+                (0.0, 0.0, 0.1),
+                ]
+        trajectory = self.get_trajectory([0.0, 0.0, 0.0], acc_list)
+        for future_pos in trajectory:
+            print(future_pos)
+
+        # visualise trajectory
+        self.visualise_trajectory(trajectory)
+
+        # visualise goal
+        goal_pos = self.goal[0]
+        pose_cov_msg = PoseWithCovarianceStamped()
+        pose_cov_msg.header.stamp = rospy.Time.now()
+        pose_cov_msg.header.frame_id = self.robot_frame
+        pose_cov_msg.pose.pose = Utils.get_pose_from_x_y_theta(*goal_pos)
+        pose_cov_msg.pose.covariance[0] = 0.1
+        pose_cov_msg.pose.covariance[7] = 0.1
+        pose_cov_msg.pose.covariance[14] = 0.0
+        pose_cov_msg.pose.covariance[21] = 0.0
+        pose_cov_msg.pose.covariance[28] = 0.0
+        pose_cov_msg.pose.covariance[35] = 0.1
+        print(pose_cov_msg)
+        self._goal_pub.publish(pose_cov_msg)
+
+        rospy.sleep(1.0)
+
+    def test2(self):
+        start_time = rospy.Time.now()
+        self.get_optimal_u_brute_force(self.goal, control_horizon=2)
+        end_time = rospy.Time.now()
+        duration = end_time - start_time
+        print(duration.to_sec())
+
+    def visualise_trajectory(self, trajectory):
+        future_poses = [i[0] for i in trajectory]
+        future_poses.insert(0, (0.0, 0.0, 0.0))
+        path_msg = Utils.get_path_msg_from_poses(future_poses, self.robot_frame)
+        self._debug_traj_pub.publish(path_msg)
+
+    def get_acc_options(self, acc):
+        return [
+                (0.0, 0.0, 0.0),
+                (acc, 0.0, 0.0),
+                (0.0, acc, 0.0),
+                (0.0, 0.0, acc),
+                (-acc, 0.0, 0.0),
+                (0.0, -acc, 0.0),
+                (0.0, 0.0, -acc),
+               ]
+
+    def get_optimal_u_brute_force(self, goal, control_horizon=2):
+        u_options = self.get_acc_options(0.1)
+        indexes = [0 for i in range(control_horizon)]
+        indexes[-1] = -1
+        costs = []
+        u_list = []
+        while indexes.count(len(u_options)-1) < len(indexes):
+            indexes[-1] += 1
+            ind = len(indexes)-1
+            while ind > 0 and indexes[ind] > len(u_options)-1:
+                indexes[ind] = 0
+                ind -= 1
+                indexes[ind] += 1
+            u = [u_options[i] for i in indexes]
+            trajectory = self.get_trajectory([0.0, 0.0, 0.0], u)
+
+            # visualise trajectory
+            # self.visualise_trajectory(trajectory)
+            # rospy.sleep(0.5)
+            cost = self.calc_cost(trajectory, goal)
+            u_list.append(u)
+            costs.append(cost)
+            # print(indexes)
+            # print(u)
+            # print(cost)
+            # print()
+        # print(control_delta_u_list)
+        # print(errors)
+        min_cost = min(costs)
+        print(min_cost)
+        optimal_u = u_list[costs.index(min_cost)]
+        print(optimal_u)
+        self.visualise_trajectory(self.get_trajectory([0.0, 0.0, 0.0], optimal_u))
+        return optimal_u
+
+    def calc_cost(self, trajectory, goal):
+        cost = 0.0
+        future_poses = [i[0] for i in trajectory]
+        for pose in future_poses:
+            safe = self.laser_utils.is_safe_from_colliding_at(*pose)
+            cost += 0.0 if safe else 1000.0
+        horizon_state = trajectory[-1]
+        cost += Utils.get_distance_between_points(horizon_state[0][:2], goal[0][:2])**2
+        cost += Utils.get_shortest_angle(horizon_state[0][2], goal[0][2])**2
+        cost += Utils.get_distance_between_points(horizon_state[1][:2], goal[1][:2])**2
+        cost += (horizon_state[1][2]-goal[1][2])**2
+        return cost
+
+    def get_trajectory(self, current_vel, acc_list, time_list=None):
+        if time_list is None:
+            time_list = [self.default_control_time for _ in range(len(acc_list))]
+        trajectory = []
+        pos = (0.0, 0.0, 0.0)
+        vel = list(current_vel)
+        for acc, t in zip(acc_list, time_list):
+            vel[0] += acc[0]
+            vel[1] += acc[1]
+            vel[2] += acc[2]
+            pos = SimpleMPController.get_future_pose(pos[0], pos[1], pos[2],
+                                                     vel[0], vel[1], vel[2], t)
+            trajectory.append((pos, vel))
+        return trajectory
+
+    @staticmethod
+    def get_future_pose(pos_x, pos_y, pos_theta, vel_x, vel_y, vel_theta, future_time):
+        delta_t = 0.1
+        vel_mat = tf.transformations.translation_matrix([vel_x*delta_t, vel_y*delta_t, 0.0])
+        rot_mat = tf.transformations.euler_matrix(0.0 ,0.0, vel_theta*delta_t)
+        vel_mat[:2, :2] = rot_mat[:2, :2]
+        pos_mat = tf.transformations.translation_matrix([pos_x, pos_y, 0.0])
+        pos_rot_mat = tf.transformations.euler_matrix(0.0 ,0.0, pos_theta)
+        pos_mat[:2, :2] = pos_rot_mat[:2, :2]
+        for i in range(int(future_time*10)):
+            pos_mat = pos_mat.dot(vel_mat)
+        _, _, theta = tf.transformations.euler_from_matrix(pos_mat)
+        position = tf.transformations.translation_from_matrix(pos_mat)
+        return (position[0], position[1], theta)
+
+if __name__ == "__main__":
+    rospy.init_node('simple_mp_controller')
+    SMPC = SimpleMPController()
+    # SMPC.test()
+    SMPC.test2()
+    # rospy.spin()
+    rospy.loginfo('Exiting.')
