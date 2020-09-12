@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import tf
+import copy
 import math
 import rospy
 import numpy as np
@@ -77,7 +78,19 @@ class SimpleMPController(object):
 
     def test2(self):
         start_time = rospy.Time.now()
-        self.get_optimal_u_brute_force(self.goal, control_horizon=2)
+        # self.get_optimal_u_brute_force(self.goal,
+        #                                current_vel=[0.0, 0.0, 0.0],
+        #                                control_horizon=2,
+        #                                prediction_horizon=3)
+        # self.get_optimal_u_brute_force(self.goal,
+        #                                current_vel=[0.0, 0.0, 0.0],
+        #                                control_horizon=3,
+        #                                prediction_horizon=4)
+        self.get_optimal_u_gradient_descent(self.goal,
+                                            current_vel=[0.0, 0.0, 0.0],
+                                            control_horizon=3,
+                                            prediction_horizon=5,
+                                            initial_u=[0, 0, 0])
         end_time = rospy.Time.now()
         duration = end_time - start_time
         print(duration.to_sec())
@@ -99,7 +112,19 @@ class SimpleMPController(object):
                 (0.0, 0.0, -acc),
                ]
 
-    def get_optimal_u_brute_force(self, goal, control_horizon=2):
+    def get_optimal_u_brute_force(self, goal, current_vel=[0.0, 0.0, 0.0],
+                                  control_horizon=2, prediction_horizon=2):
+        """
+        Brute force method to find optimal u
+
+        :goal: tuple of tuples ((float, float, float), ...)
+        :control_horizon: int (positive)
+        :prediction_horizon: int (positive)
+        :returns: list of tuples [(float, float, float), ...]
+
+        """
+        if prediction_horizon < control_horizon:
+            prediction_horizon = control_horizon
         u_options = self.get_acc_options(0.1)
         indexes = [0 for i in range(control_horizon)]
         indexes[-1] = -1
@@ -113,11 +138,10 @@ class SimpleMPController(object):
                 ind -= 1
                 indexes[ind] += 1
             u = [u_options[i] for i in indexes]
-            trajectory = self.get_trajectory([0.0, 0.0, 0.0], u)
+            for _ in range(prediction_horizon-control_horizon):
+                u.append(u_options[0])
+            trajectory = self.get_trajectory(current_vel, u)
 
-            # visualise trajectory
-            # self.visualise_trajectory(trajectory)
-            # rospy.sleep(0.5)
             cost = self.calc_cost(trajectory, goal)
             u_list.append(u)
             costs.append(cost)
@@ -125,26 +149,94 @@ class SimpleMPController(object):
             # print(u)
             # print(cost)
             # print()
-        # print(control_delta_u_list)
-        # print(errors)
+        print()
         min_cost = min(costs)
         print(min_cost)
         optimal_u = u_list[costs.index(min_cost)]
         print(optimal_u)
-        self.visualise_trajectory(self.get_trajectory([0.0, 0.0, 0.0], optimal_u))
+        self.visualise_trajectory(self.get_trajectory(current_vel, optimal_u))
         return optimal_u
+
+    def get_optimal_u_gradient_descent(self, goal, current_vel=[0.0, 0.0, 0.0],
+                                       control_horizon=2, prediction_horizon=2,
+                                       initial_u=None):
+        """
+        Gradient descent from initial_u
+
+        :goal: tuple of tuples ((float, float, float), ...)
+        :control_horizon: int (positive)
+        :prediction_horizon: int (positive)
+        :initial_u: list of int
+        :returns: list of tuples [(float, float, float), ...]
+
+        """
+        if prediction_horizon < control_horizon:
+            prediction_horizon = control_horizon
+        if initial_u is None:
+            current = [0 for i in range(control_horizon)]
+        else:
+            current = copy.deepcopy(initial_u)
+
+        u_options = self.get_acc_options(0.1)
+        current_cost = self.calc_cost_wrapper_from_u_index(current, current_vel,
+                                                           goal, control_horizon,
+                                                           prediction_horizon)
+        print(current, current_cost)
+        for _ in range(10):
+            # generate neighbours
+            neighbours = []
+            for i in range(control_horizon):
+                for j in range(len(u_options)):
+                    if current[i] != j:
+                        neighbour = copy.deepcopy(current)
+                        neighbour[i] = j
+                        neighbours.append(neighbour)
+
+            # find costs of neighbours
+            costs = [self.calc_cost_wrapper_from_u_index(n, current_vel, goal,
+                                                         control_horizon, prediction_horizon)
+                     for n in neighbours]
+            # for n, c in zip(neighbours, costs):
+            #     print(n, c)
+
+            # find neighbour with min cost
+            neighbour_min_cost = min(costs)
+
+            # make current equal to neighbour with min cost if better
+            if neighbour_min_cost > current_cost:
+                break
+
+            current = neighbours[costs.index(neighbour_min_cost)]
+            current_cost = neighbour_min_cost
+            # print(current, current_cost)
+            # print()
+        # print()
+        optimal_u = [u_options[i] for i in current]
+        for _ in range(prediction_horizon-control_horizon):
+            optimal_u.append(u_options[0])
+        print(optimal_u, current_cost)
+        self.visualise_trajectory(self.get_trajectory(current_vel, optimal_u))
+        return optimal_u
+
+    def calc_cost_wrapper_from_u_index(self, indexes, current_vel, goal, control_horizon, prediction_horizon):
+        u_options = self.get_acc_options(0.1)
+        u = [u_options[i] for i in indexes]
+        for _ in range(prediction_horizon-control_horizon):
+            u.append(u_options[0])
+        trajectory = self.get_trajectory(current_vel, u)
+        return self.calc_cost(trajectory, goal)
 
     def calc_cost(self, trajectory, goal):
         cost = 0.0
         future_poses = [i[0] for i in trajectory]
         for pose in future_poses:
             safe = self.laser_utils.is_safe_from_colliding_at(*pose)
-            cost += 0.0 if safe else 1000.0
+            cost += 0.0 if safe else 100.0
         horizon_state = trajectory[-1]
-        cost += Utils.get_distance_between_points(horizon_state[0][:2], goal[0][:2])**2
-        cost += Utils.get_shortest_angle(horizon_state[0][2], goal[0][2])**2
-        cost += Utils.get_distance_between_points(horizon_state[1][:2], goal[1][:2])**2
-        cost += (horizon_state[1][2]-goal[1][2])**2
+        cost += Utils.get_distance_between_points(horizon_state[0][:2], goal[0][:2])**2 * 10.0
+        cost += Utils.get_shortest_angle(horizon_state[0][2], goal[0][2])**2 * 10.0
+        cost += Utils.get_distance_between_points(horizon_state[1][:2], goal[1][:2])**2 * 10.0
+        cost += (horizon_state[1][2]-goal[1][2])**2 * 10.0
         return cost
 
     def get_trajectory(self, current_vel, acc_list, time_list=None):
