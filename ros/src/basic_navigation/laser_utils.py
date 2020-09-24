@@ -26,7 +26,7 @@ class LaserUtils(object):
         self.use_front_half = True
         footprint_padding = kwargs.get('footprint_padding', 0.1)
         self.set_footprint_padding(footprint_padding)
-        self.points = None
+        self.cloud = None
         self.actual_footprint = []
         self.debug = kwargs.get('debug', False)
 
@@ -43,21 +43,19 @@ class LaserUtils(object):
             rospy.sleep(0.2)
 
     def laser_cb(self, msg):
-        cloud = self.laser_proj.projectLaser(msg, channel_options=LaserProjection.ChannelOption.NONE)
-        points = pc2.read_points(cloud, skip_nans=True, field_names=("x", "y"))
-        self.points = []
-        for p in points:
-            transformed_p = self.matrix.dot([p[0], p[1], 0.0, 1.0])
-            if not self.is_inside_polygon(transformed_p[0], transformed_p[1], self.actual_footprint):
-                self.points.append(transformed_p[:2])
+        self.cloud = self.laser_proj.projectLaser(msg, channel_options=LaserProjection.ChannelOption.NONE)
         if self.debug:
-            self.pc_pub.publish(cloud)
+            self.pc_pub.publish(self.cloud)
 
     def is_safe_from_colliding_at(self, x=0.0, y=0.0, theta=0.0):
         footprint = self.get_footprint_at(x, y, theta)
         if self.debug:
             self.pub_debug_footprint(footprint)
-        for p in self.points:
+        points = pc2.read_points(self.cloud, skip_nans=True, field_names=("x", "y"))
+        for p in points:
+            transformed_p = self.matrix.dot([p[0], p[1], 0.0, 1.0])
+            if self.is_inside_polygon(transformed_p[0], transformed_p[1], self.actual_footprint):
+                continue
             if self.only_use_half and ((self.use_front_half and p[0] <= 0) or\
                                        (not self.use_front_half and p[0] >= 0)):
                 continue
@@ -139,6 +137,7 @@ class LaserUtils(object):
         return Utils.ray_tracing_algorithm(xPoints, yPoints, x, y)
 
     def get_recovery_direction(self):
+        # FIXME
         closest_point = min(self.points, key=lambda point: Utils.get_distance(point[0], point[1]))
         return math.atan2(closest_point[1], closest_point[0])
 
