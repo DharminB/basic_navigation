@@ -63,6 +63,15 @@ class LaserUtils(object):
                 return False
         return True
 
+    def get_points(self):
+        points_in_laser_link = pc2.read_points(self.cloud, skip_nans=True, field_names=("x", "y"))
+        points = []
+        for p in points_in_laser_link:
+            transformed_p = self.matrix.dot([p[0], p[1], 0.0, 1.0])
+            if not self.is_inside_polygon(transformed_p[0], transformed_p[1], self.actual_footprint):
+                points.append((transformed_p[0], transformed_p[1]))
+        return points
+
     def get_footprint_at(self, x=0.0, y=0.0, theta=0.0):
         new_footprint = []
         for p in self.padded_footprint:
