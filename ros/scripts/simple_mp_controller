@@ -38,7 +38,7 @@ class SimpleMPController(object):
         self.model = Model(default_control_time=default_control_time)
 
         #      ((px   py   pa ), (vx   vy   va ), (tpx  tpy  tpa), (tvx  tvy  tva))
-        self.goal = ((4.5, 0.0, 0.0), (0.0, 0.0, 0.0), (0.1, 0.1, 0.1), (0.0, 0.0, 0.0))
+        self.goal = ((2.5, 0.0, 0.0), (0.0, 0.0, 0.0), (0.1, 0.1, 0.1), (0.0, 0.0, 0.0))
 
         rospy.sleep(1.0)
         rospy.loginfo('Initialised')
@@ -80,10 +80,13 @@ class SimpleMPController(object):
         constraints = {
                         'max_acc':[0.1, 0.1, 0.1],
                         'min_acc':[-0.1, -0.1, -0.1],
-                        'max_vel':[0.3, 0.3, 0.5],
-                        'min_vel':[0.0, -0.5, -0.5]
+                        'max_vel':[0.25, 0.25, 0.5],
+                        'min_vel':[0.0, -0.25, -0.5]
                         }
-        constraints['points'] = self.laser_utils.get_points()
+        points = self.laser_utils.get_points()
+        print(len(points))
+        constraints['points'] = points[::3]
+        print(len(constraints['points']))
         current_vel = [0.0, 0.0, 0.0]
         control_horizon = 10
         prediction_horizon = 10
@@ -98,7 +101,17 @@ class SimpleMPController(object):
         #                     control_horizon=control_horizon,
         #                     prediction_horizon=prediction_horizon,
         #                     initial_u=None, constraints=constraints)
-        cost, optimal_u = Optimiser.calc_optimal_u_gradient_descent(
+        # cost, optimal_u = Optimiser.calc_optimal_u_gradient_descent(
+        #                     self.model, self.goal, current_vel=current_vel,
+        #                     control_horizon=control_horizon,
+        #                     prediction_horizon=prediction_horizon,
+        #                     initial_u=None, constraints=constraints)
+        # cost, optimal_u = Optimiser.calc_optimal_u_line_search(
+        #                     self.model, self.goal, current_vel=current_vel,
+        #                     control_horizon=control_horizon,
+        #                     prediction_horizon=prediction_horizon,
+        #                     initial_u=None, constraints=constraints)
+        cost, optimal_u = Optimiser.calc_optimal_u_conjugate_gradient_descent(
                             self.model, self.goal, current_vel=current_vel,
                             control_horizon=control_horizon,
                             prediction_horizon=prediction_horizon,
@@ -116,8 +129,8 @@ class SimpleMPController(object):
         for _ in range(prediction_horizon-control_horizon):
             optimal_u.append(u_options[0])
         trajectory = self.model.get_trajectory(current_vel, optimal_u)
-        # for t in trajectory:
-        #     print(t[1])
+        for t in trajectory:
+            print(t[1])
         self.visualise_trajectory(trajectory)
         rospy.sleep(1.0)
 
