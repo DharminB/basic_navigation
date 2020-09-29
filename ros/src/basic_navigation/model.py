@@ -11,17 +11,6 @@ class Model(object):
         self.acc_theta = acc_theta
         self.default_control_time = default_control_time
 
-    def get_u_options(self):
-        return [
-                (0.0,           0.0,            0.0),
-                (self.acc_x,    0.0,            0.0),
-                (0.0,           self.acc_y,     0.0),
-                (0.0,           0.0,            self.acc_theta),
-                (-self.acc_x,   0.0,            0.0),
-                (0.0,           -self.acc_y,    0.0),
-                (0.0,           0.0,            -self.acc_theta),
-               ]
-
     def get_trajectory(self, current_vel, acc_list, time_list=None):
         if time_list is None:
             time_list = [self.default_control_time for _ in range(len(acc_list))]

@@ -91,22 +91,12 @@ class SimpleMPController(object):
         control_horizon = 10
         prediction_horizon = 10
         start_time = rospy.Time.now()
-        # cost, optimal_u = Optimiser.calc_optimal_u_brute_force(
-        #                     self.model, self.goal, current_vel=current_vel,
-        #                     control_horizon=control_horizon,
-        #                     prediction_horizon=prediction_horizon,
-        #                     constraints=constraints)
-        # cost, optimal_u = Optimiser.calc_optimal_u_gradient_descent_neighbour(
-        #                     self.model, self.goal, current_vel=current_vel,
-        #                     control_horizon=control_horizon,
-        #                     prediction_horizon=prediction_horizon,
-        #                     initial_u=None, constraints=constraints)
         # cost, optimal_u = Optimiser.calc_optimal_u_gradient_descent(
         #                     self.model, self.goal, current_vel=current_vel,
         #                     control_horizon=control_horizon,
         #                     prediction_horizon=prediction_horizon,
         #                     initial_u=None, constraints=constraints)
-        # cost, optimal_u = Optimiser.calc_optimal_u_line_search(
+        #z cost, optimal_u = Optimiser.calc_optimal_u_line_search(
         #                     self.model, self.goal, current_vel=current_vel,
         #                     control_horizon=control_horizon,
         #                     prediction_horizon=prediction_horizon,
@@ -116,11 +106,6 @@ class SimpleMPController(object):
                             control_horizon=control_horizon,
                             prediction_horizon=prediction_horizon,
                             initial_u=None, constraints=constraints)
-        # cost, optimal_u = Optimiser.calc_optimal_u_gradient_descent_random_restart(
-        #                     self.model, self.goal, current_vel=current_vel,
-        #                     control_horizon=control_horizon,
-        #                     prediction_horizon=prediction_horizon,
-        #                     num_of_restart=5, constraints=constraints)
         end_time = rospy.Time.now()
         duration = end_time - start_time
         print("Time:", duration.to_sec())
