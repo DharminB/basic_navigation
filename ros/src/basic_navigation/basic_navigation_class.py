@@ -108,7 +108,7 @@ class BasicNavigation(object):
 
     def _rotate_in_place(self, theta_error=1.0):
         theta_vel_raw = theta_error * self.p_theta_in_place
-        theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
+        theta_vel = Utils.signed_clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
 
         num_of_points = 10
         future_poses = Utils.get_future_poses(0.0, 0.0, theta_vel, num_of_points,
@@ -124,10 +124,10 @@ class BasicNavigation(object):
 
     def _move_forward(self, pos_error=1.0, theta_error=1.0):
         theta_vel_raw = theta_error * self.p_theta
-        theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
+        theta_vel = Utils.signed_clip(theta_vel_raw, self.max_theta_vel, self.min_theta_vel)
 
         future_vel_prop_raw = (pos_error * self.p_linear) / (1.0 + abs(theta_vel) * self.c_theta)
-        future_vel_prop = Utils.clip(future_vel_prop_raw, self.max_linear_vel, self.min_linear_vel)
+        future_vel_prop = Utils.signed_clip(future_vel_prop_raw, self.max_linear_vel, self.min_linear_vel)
 
         num_of_points = 10
         future_poses = Utils.get_future_poses(future_vel_prop, 0.0, theta_vel, num_of_points,
@@ -149,7 +149,7 @@ class BasicNavigation(object):
             return
 
         desired_x_vel = future_vel_prop * (float(collision_index)/num_of_points)
-        desired_x_vel = Utils.clip(desired_x_vel, self.max_linear_vel, self.min_linear_vel)
+        desired_x_vel = Utils.signed_clip(desired_x_vel, self.max_linear_vel, self.min_linear_vel)
 
         # ramp up the vel according to max_linear_acc
         x_vel = min(desired_x_vel, abs(self.current_vel) + self.max_linear_acc)

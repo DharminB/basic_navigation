@@ -79,7 +79,7 @@ class VectorFieldNavigation(object):
                 return
             else:
                 theta_vel_raw = angular_dist * self.p_theta_in_place
-                theta_vel = Utils.clip(theta_vel_raw, self.max_theta_vel, -self.max_theta_vel)
+                theta_vel = Utils.signed_clip(theta_vel_raw, self.max_theta_vel, -self.max_theta_vel)
                 self.pub_ramped_vel(0.0, 0.0, theta_vel)
                 return
 
@@ -90,8 +90,8 @@ class VectorFieldNavigation(object):
             goal_force_upper_limit = 1.0
         else:
             goal_force_upper_limit = 0.8
-        goal_force = [Utils.clip(goal[0], goal_force_upper_limit, 0.1),
-                      Utils.raw_clip(goal[1], goal_force_upper_limit, -0.8)]
+        goal_force = [Utils.signed_clip(goal[0], goal_force_upper_limit, 0.1),
+                      Utils.clip(goal[1], goal_force_upper_limit, -0.8)]
 
         force_vector = [goal_force[0]+obstacle_force[0],
                         goal_force[1]+obstacle_force[1]]
@@ -132,17 +132,17 @@ class VectorFieldNavigation(object):
 
     def pub_ramped_vel(self, x_vel=0.0, y_vel=0.0, theta_vel=0.0):
         num_of_points = 10
-        x_vel = Utils.raw_clip(x_vel, self.max_linear_vel, -self.max_linear_vel)
-        y_vel = Utils.raw_clip(y_vel, self.max_linear_vel, -self.max_linear_vel)
-        theta_vel = Utils.raw_clip(theta_vel, self.max_theta_vel, -self.max_theta_vel)
+        x_vel = Utils.clip(x_vel, self.max_linear_vel, -self.max_linear_vel)
+        y_vel = Utils.clip(y_vel, self.max_linear_vel, -self.max_linear_vel)
+        theta_vel = Utils.clip(theta_vel, self.max_theta_vel, -self.max_theta_vel)
         future_poses = Utils.get_future_poses(x_vel, y_vel,theta_vel, num_of_points,
                                               self.future_pos_lookahead_time)
         self._traj_pub.publish(Utils.get_path_msg_from_poses(future_poses, self.robot_frame))
-        x_vel = Utils.raw_clip(x_vel, self._current_vel[0]+self.max_linear_acc,
+        x_vel = Utils.clip(x_vel, self._current_vel[0]+self.max_linear_acc,
                                   self._current_vel[0]-self.max_linear_acc)
-        y_vel = Utils.raw_clip(y_vel, self._current_vel[1]+self.max_linear_acc,
+        y_vel = Utils.clip(y_vel, self._current_vel[1]+self.max_linear_acc,
                                   self._current_vel[1]-self.max_linear_acc)
-        theta_vel = Utils.raw_clip(theta_vel, self._current_vel[2]+self.max_angular_acc,
+        theta_vel = Utils.clip(theta_vel, self._current_vel[2]+self.max_angular_acc,
                                           self._current_vel[2]-self.max_angular_acc)
         self._cmd_vel_pub.publish(Utils.get_twist(x=x_vel, y=y_vel, theta=theta_vel))
 
