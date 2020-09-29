@@ -5,10 +5,8 @@ class Model(object):
 
     """Class representing model for MPC"""
 
-    def __init__(self, acc_x=0.1, acc_y=0.1, acc_theta=0.1, default_control_time=1.0):
-        self.acc_x = acc_x
-        self.acc_y = acc_x
-        self.acc_theta = acc_theta
+    def __init__(self, default_control_time=1.0, robot_radius=0.5):
+        self.robot_radius = robot_radius
         self.default_control_time = default_control_time
 
     def get_trajectory(self, current_vel, acc_list, time_list=None):

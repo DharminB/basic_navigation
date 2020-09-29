@@ -85,7 +85,7 @@ class SimpleMPController(object):
                         }
         points = self.laser_utils.get_points()
         print(len(points))
-        constraints['points'] = points[::3]
+        constraints['points'] = points[::2]
         print(len(constraints['points']))
         current_vel = [0.0, 0.0, 0.0]
         control_horizon = 10
@@ -96,11 +96,11 @@ class SimpleMPController(object):
         #                     control_horizon=control_horizon,
         #                     prediction_horizon=prediction_horizon,
         #                     initial_u=None, constraints=constraints)
-        #z cost, optimal_u = Optimiser.calc_optimal_u_line_search(
-        #                     self.model, self.goal, current_vel=current_vel,
-        #                     control_horizon=control_horizon,
-        #                     prediction_horizon=prediction_horizon,
-        #                     initial_u=None, constraints=constraints)
+        # cost, optimal_u = Optimiser.calc_optimal_u_line_search(
+        #                      self.model, self.goal, current_vel=current_vel,
+        #                      control_horizon=control_horizon,
+        #                      prediction_horizon=prediction_horizon,
+        #                      initial_u=None, constraints=constraints)
         cost, optimal_u = Optimiser.calc_optimal_u_conjugate_gradient_descent(
                             self.model, self.goal, current_vel=current_vel,
                             control_horizon=control_horizon,
@@ -109,13 +109,14 @@ class SimpleMPController(object):
         end_time = rospy.Time.now()
         duration = end_time - start_time
         print("Time:", duration.to_sec())
+        print("CONTROL")
         Optimiser.print_u_and_cost(optimal_u, cost)
-        u_options = self.model.get_u_options()
         for _ in range(prediction_horizon-control_horizon):
-            optimal_u.append(u_options[0])
+            optimal_u.append((0.0, 0.0, 0.0))
         trajectory = self.model.get_trajectory(current_vel, optimal_u)
-        for t in trajectory:
-            print(t[1])
+        velocities = [t[1] for t in trajectory]
+        print("VELOCITY")
+        Optimiser.print_u_and_cost(velocities, 0.0)
         self.visualise_trajectory(trajectory)
         rospy.sleep(1.0)
 

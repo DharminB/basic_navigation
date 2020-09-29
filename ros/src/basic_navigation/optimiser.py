@@ -163,7 +163,7 @@ class Optimiser(object):
         if prediction_horizon < control_horizon:
             prediction_horizon = control_horizon
 
-        h = 0.0001
+        h = 0.000001
         cost_threshold = 0.1
 
         if initial_u is None:
@@ -174,7 +174,7 @@ class Optimiser(object):
         current_cost = Optimiser.calc_cost(model, u, current_vel, goal,
                                            control_horizon, prediction_horizon,
                                            constraints)
-        Optimiser.print_u_and_cost(u, current_cost)
+        # Optimiser.print_u_and_cost(u, current_cost)
         prev_steepest_direction = None
         prev_conjugate_direction = None
         start_time = time.time()
@@ -302,7 +302,7 @@ class Optimiser(object):
             # collision soft constraints
             if 'points' in constraints:
                 for pose in future_poses:
-                    cost += 100.0 * Optimiser.get_laser_points_cost_at(constraints['points'], *pose)
+                    cost += 100.0 * Optimiser.get_laser_points_cost_at(model, constraints['points'], *pose)
 
         # cost for reaching goal state
         horizon_state = trajectory[-1]
@@ -318,19 +318,18 @@ class Optimiser(object):
         return cost
 
     @staticmethod
-    def get_laser_points_cost_at(points, x=0.0, y=0.0, theta=0.0):
-        robot_radius = 0.5 # FIXME
+    def get_laser_points_cost_at(model, points, x=0.0, y=0.0, theta=0.0):
+        # TODO: when robot is represented with more than one circle, all those
+        # circles need to be transformed first
+        robot_radius = model.robot_radius
         base = 0.1
         exp_multiplier = 5.0
-        robot_pt = (x, y)
+        # robot_pt = (x, y)
         cost = 0.0
         for pt in points:
-            dist = Utils.get_distance_between_points(robot_pt, pt)
+            dist = (pt[0]-x)**2 + (pt[1]-y)**2
             value = base**(exp_multiplier*(dist-robot_radius))
             cost += value
-            # print(dist, value)
-        # print(cost)
-        # print()
         return cost
 
     @staticmethod
