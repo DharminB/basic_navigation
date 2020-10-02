@@ -1,7 +1,7 @@
 # Basic Navigation
 
-![rviz\_corridor\_junction\_corridor](docs/rviz_corridor_junction_corridor.gif)
-![rviz\_spline\_based\_replanning](docs/rviz_spline_based_replanning.gif)
+![rviz-corridor-junction-corridor](docs/rviz_corridor_junction_corridor.gif)
+![rviz-spline-based-replanning](docs/rviz_spline_based_replanning.gif)
 
 ### Note
 For simulation, [ropod\_sim](https://github.com/DharminB/ropod_sim) is a requirement.
@@ -34,6 +34,6 @@ Once a goal is requested this navigation does the following
 
 ## topology\_visualiser
 
-![rviz\_topology\_vis](docs/rviz_topology_vis.gif)
+![rviz-topology-vis](docs/rviz_topology_vis.gif)
 
 A node to visualise and edit topological graph.
